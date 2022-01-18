@@ -964,7 +964,7 @@ int main(void)
         DrawTextEx(fontTitle, "Add a new record.", (Vector2){277,83}, 56, 2, clLabels);
         bAddSave_click   = GuiButton((Rectangle){461, 630, 88, 32}, "Save");
         bAddCancel_click = GuiButton((Rectangle){791, 630, 88, 32}, "Cancel");
-        if ((bAddSave_click) || (IsKeyPressed(KEY_S))){
+        if (bAddSave_click){
     
           // transfer the fields in the buffer and update the record
           strcpy(eBreed_buff, trim(eBreed,NULL));
@@ -1015,7 +1015,7 @@ int main(void)
             }
           }
         }
-        if ((bAddCancel_click) || (IsKeyPressed(KEY_C))){
+        if (bAddCancel_click){
           // no transfer...
           currentScreen = 3;
         }
@@ -1077,7 +1077,7 @@ int main(void)
         DrawTextEx(fontTitle, "Modify the record (navigation).", (Vector2){277,83}, 56, 2, clLabels);
         bModSave_click = GuiButton((Rectangle){461, 630, 88, 32}, "Save");
         bModCancel_click = GuiButton((Rectangle){791, 630, 88, 32}, "Cancel");
-        if ((bModSave_click) || (IsKeyPressed(KEY_S))){
+        if (bModSave_click){
           currentScreen = 3; //goto first record because the key order might change if modifying a record
           // transefer the fields in the buffer and update the record
           strcpy(category, trim(eCategory,NULL));
@@ -1103,7 +1103,7 @@ int main(void)
           if (gdbm_store(pigeondb,keydb,datadb,GDBM_REPLACE) != GDBM_NO_ERROR) 
             printf("Error replacing data\r\n");
         }
-        if ((bModCancel_click) || (IsKeyPressed(KEY_C))){
+        if (bModCancel_click){
           // no transfer...
           currentScreen = originated;
         }
@@ -1467,7 +1467,7 @@ int main(void)
         DrawTextEx(fontTitle, "Modify the record (search result).", (Vector2){277,83}, 56, 2, clLabels);
         bModSave_click = GuiButton((Rectangle){461, 630, 88, 32}, "Save");
         bModCancel_click = GuiButton((Rectangle){791, 630, 88, 32}, "Cancel");
-        if ((bModSave_click) || (IsKeyPressed(KEY_S))){
+        if (bModSave_click){
           currentScreen = originated;
           // transefer the fields in the buffer and update the record
           strcpy(category_buff, trim(eCategory_buff,NULL));
@@ -1497,7 +1497,7 @@ int main(void)
           else 
             load_imageid(imageid_buff, &bufferTex2);
         }
-        if ((bModCancel_click) || (IsKeyPressed(KEY_C))){
+        if (bModCancel_click){
           // no transfer...
           currentScreen = originated;
         }
