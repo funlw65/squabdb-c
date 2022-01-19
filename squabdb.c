@@ -373,7 +373,7 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "SquabDB - Pigeon Database");
     GuiSetStyle(DEFAULT, TEXT_SIZE, 16);
     GuiSetState(GUI_STATE_NORMAL);
-    SetTargetFPS(25);
+    SetTargetFPS(60);
     SetExitKey(0);
     bool exitWindow = false;
 
