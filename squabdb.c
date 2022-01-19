@@ -106,43 +106,43 @@ int stp;
 
 // database elements
 GDBM_FILE  pigeondb; // qdbm file
-datum      keydb, datadb, keydb2, datadb2;
+datum      keydb, datadb, keydb2, datadb2, keydb_temp;
 gdbm_error pigeondb_error;
 bool       squabdb_empty, cycle_common;
 
 char image_path[71] = "";
 char project_subfolder[10] = "pictures/";
 //
-char breed[61] = "";
+char breed[60] = "";
 char category[11] = "";
-char origin[61] = "";
-char imageid[61] = "";
+char origin[60] = "";
+char imageid[60] = "";
 char description[100] = "";
 char desc1[50] = "";
 char desc2[50] = "";
 char recordBuffer[294] = "";
 char recordBuffer2[294] = "";
 //
-char eBreed[61] = "";
+char eBreed[60] = "";
 char eCategory[11] = "";
-char eOrigin[61] = "";
-char eImageid[61] = "";
+char eOrigin[60] = "";
+char eImageid[60] = "";
 char eDescription[100] = "";
 char eDesc1[50] = "";
 char eDesc2[50] = "";
 //
-char breed_buff[61] = "";
+char breed_buff[60] = "";
 char category_buff[11] = "";
-char origin_buff[61] = "";
-char imageid_buff[61] = "";
+char origin_buff[60] = "";
+char imageid_buff[60] = "";
 char description_buff[100] = "";
 char desc1_buff[50] = "";
 char desc2_buff[50] = "";
 //
-char eBreed_buff[61] = "";
+char eBreed_buff[60] = "";
 char eCategory_buff[11] = "";
-char eOrigin_buff[61] = "";
-char eImageid_buff[61] = "";
+char eOrigin_buff[60] = "";
+char eImageid_buff[60] = "";
 char eDescription_buff[100] = "";
 char eDesc1_buff[50] = "";
 char eDesc2_buff[50] = "";
@@ -174,10 +174,10 @@ void clear_add_fields(void){
 
 void clear_buffer_fields(void)
 {
-  breed_buff[61] = '\0';
-  category_buff[11] = '\0';
-  origin_buff[61] = '\0';
-  imageid_buff[61] = '\0';
+  breed_buff[0] = '\0';
+  category_buff[0] = '\0';
+  origin_buff[0] = '\0';
+  imageid_buff[0] = '\0';
   //description_buff[100] = '\0';
   desc1_buff[0] = '\0';
   desc2_buff[0] = '\0';
@@ -309,7 +309,7 @@ void prepare_fields(){
   strcpy(eCategory, category);
   strcpy(eOrigin, origin);
   strcpy(eImageid, imageid);  
-  if (ln < 50){
+  if (ln <= 50){
     strcpy(eDesc1, description);
     eDesc2[0] = '\0';
   }else{
@@ -832,6 +832,9 @@ int main(void)
           squabdb_empty = true;
         }else {
           squabdb_empty = false;
+          sbFirst_active = false;
+          if (!sbNext_active)
+            sbNext_active = true;
           strcpy(breed, keydb.dptr);
           datadb = gdbm_fetch(pigeondb,keydb);
           strcpy(recordBuffer, datadb.dptr);
@@ -851,9 +854,12 @@ int main(void)
         strcpy(breed_buff, breed);
         keydb = gdbm_nextkey(pigeondb,keydb);
         if (keydb.dptr == NULL) {
+          sbNext_active = false;
           originated = 2;
           cycle_common = false;
         } else {
+          if (!sbFirst_active)
+            sbFirst_active = true;
           datadb = gdbm_fetch(pigeondb,keydb);
           strcpy(recordBuffer, datadb.dptr);
           strcpy(breed,keydb.dptr);
@@ -1361,7 +1367,7 @@ int main(void)
           strcpy(eCategory_buff, category_buff);
           strcpy(eOrigin_buff, origin_buff);
           strcpy(eImageid_buff, imageid_buff);  
-          if (ln < 50){
+          if (ln <= 50){
             strcpy(eDesc1_buff, description_buff);
             eDesc2_buff[0] = '\0';
           }else{
