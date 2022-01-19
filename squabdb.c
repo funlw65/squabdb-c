@@ -15,6 +15,7 @@
 #define  RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 #include <string.h>
+#include <unistd.h>
 //#include "leaks.h"
 
 #define clTeal        CLITERAL(Color){97, 190, 221, 255}
@@ -151,7 +152,8 @@ char eText[60] = "";
 
 char err_msg[50] = "";
 
-void clear_mod_fields(void){
+void clear_mod_fields(void)
+{
   eBreed_buff[0] = '\0';
   eCategory_buff[0] = '\0';
   eOrigin_buff[0] = '\0';
@@ -162,7 +164,8 @@ void clear_mod_fields(void){
 }
 
 
-void clear_add_fields(void){
+void clear_add_fields(void)
+{
   eBreed[0] = '\0';
   eCategory[0] = '\0';
   eOrigin[0] = '\0';
@@ -282,8 +285,15 @@ void split_words3sep(char *s1, char *s2, char *s3, char *s4, char *s5)
   }
 }
 
-uint8_t i, ln, add_err;
+uint8_t i, ln, add_err, mod_err;
 
+bool image_exists(char *im){
+  char tmp[71]="";
+  strcpy(tmp, project_subfolder);
+  strcat(tmp, trim(im,NULL));
+  if( access( tmp, F_OK ) == 0 ) return true;
+  else return false;
+}
 
 void load_imageid(char *im, Texture *tex)
 {
@@ -291,12 +301,19 @@ void load_imageid(char *im, Texture *tex)
   char tmp[71]="";
   UnloadTexture(*tex);
   if (im[0] != '\0' ) {
-    strcpy(tmp, project_subfolder);
-    strcat(tmp, trim(im,NULL));
-    strcpy(image_path, tmp);
-    bufferIcon = LoadImage(image_path);
-    *tex = LoadTextureFromImage(bufferIcon);
-    UnloadImage(bufferIcon);
+    if(image_exists(im)){
+      strcpy(tmp, project_subfolder);
+      strcat(tmp, trim(im,NULL));
+      strcpy(image_path, tmp);
+      bufferIcon = LoadImage(image_path);
+      *tex = LoadTextureFromImage(bufferIcon);
+      UnloadImage(bufferIcon);
+    }
+    else {
+      bufferIcon = LoadImage("pictures/noimage.png");
+      *tex = LoadTextureFromImage(bufferIcon);
+      UnloadImage(bufferIcon);
+    }
   } else {
     bufferIcon = LoadImage("pictures/noimage.png");
     *tex = LoadTextureFromImage(bufferIcon);
@@ -304,18 +321,19 @@ void load_imageid(char *im, Texture *tex)
   }
 }
 
-void prepare_fields(){
+void prepare_fields()
+{
   ln = strlen(description);
   strcpy(eCategory, category);
   strcpy(eOrigin, origin);
-  strcpy(eImageid, imageid);  
-  if (ln <= 50){
+  strcpy(eImageid, imageid);
+  if (ln <= 50) {
     strcpy(eDesc1, description);
     eDesc2[0] = '\0';
-  }else{
+  } else {
     strncpy(eDesc1, description, 50);
-    for(i=50;i<ln;i++)
-    eDesc2[i-50] = description[i];
+    for(i=50; i<ln; i++)
+      eDesc2[i-50] = description[i];
     eDesc2[ln-50] = '\0';
   }
 }
@@ -340,9 +358,9 @@ int main(void)
       datadb = gdbm_fetch(pigeondb,keydb);
       datadb2 = datadb; // initialize also datadb2...
       strcpy(recordBuffer, datadb.dptr);
-      split_words3sep(category,origin,description,imageid, recordBuffer); 
+      split_words3sep(category,origin,description,imageid, recordBuffer);
       //
-      sbFirst_active = true;
+      sbFirst_active = false;
       sbNext_active  = true;
       sbFind_active  = true;
       sbAdd_active   = true;
@@ -496,47 +514,47 @@ int main(void)
     rec_sbFirst.y = 72;
     rec_sbFirst.width = 32;
     rec_sbFirst.height = 32;
-  
+
     rec_sbNext.x = 300;
     rec_sbNext.y = 72;
     rec_sbNext.width = 32;
     rec_sbNext.height = 32;
-  
+
     rec_sbFind.x = 348;
     rec_sbFind.y = 72;
     rec_sbFind.width = 32;
     rec_sbFind.height = 32;
-  
+
     rec_sbAdd.x = 396;
     rec_sbAdd.y = 72;
     rec_sbAdd.width = 32;
     rec_sbAdd.height = 32;
-  
+
     rec_sbMod.x = 444;
     rec_sbMod.y = 72;
     rec_sbMod.width = 32;
     rec_sbMod.height = 32;
-  
+
     rec_sbDel.x = 492;
     rec_sbDel.y = 72;
     rec_sbDel.width = 32;
     rec_sbDel.height = 32;
-  
+
     rec_sbInfo.x = 540;
     rec_sbInfo.y = 72;
     rec_sbInfo.width = 32;
     rec_sbInfo.height = 32;
-  
-    rec_sbExit.x = 588; 
-    rec_sbExit.y = 72; 
-    rec_sbExit.width = 32; 
-    rec_sbExit.height = 32; 
-  
+
+    rec_sbExit.x = 588;
+    rec_sbExit.y = 72;
+    rec_sbExit.width = 32;
+    rec_sbExit.height = 32;
+
     //
-    rec_photoFrame.x = 677; 
-    rec_photoFrame.y = 72; 
-    rec_photoFrame.width = 400; 
-    rec_photoFrame.height = 400; 
+    rec_photoFrame.x = 677;
+    rec_photoFrame.y = 72;
+    rec_photoFrame.width = 400;
+    rec_photoFrame.height = 400;
 
 
     uint8_t originated = 2;
@@ -611,7 +629,7 @@ int main(void)
       if (currentScreen == 2) {
         //
         originated = 2;
-        if (squabdb_empty){
+        if (squabdb_empty) {
           sbFirst_active = false;
           sbNext_active = false;
           sbFind_active = false;
@@ -641,13 +659,13 @@ int main(void)
         if (CheckCollisionPointRec(mousePosition, rec_sbNext))
           if (sbNext_active)
             DrawRectangleRoundedLines(rec_sbNext, 0.2, 4, 2, ORANGE);
-        if (CheckCollisionPointRec(mousePosition, rec_sbFind)) 
+        if (CheckCollisionPointRec(mousePosition, rec_sbFind))
           if (sbFind_active)
             DrawRectangleRoundedLines(rec_sbFind, 0.2, 4, 2, ORANGE);
-        if (CheckCollisionPointRec(mousePosition, rec_sbAdd)) 
+        if (CheckCollisionPointRec(mousePosition, rec_sbAdd))
           if (sbAdd_active)
             DrawRectangleRoundedLines(rec_sbAdd, 0.2, 4, 2, ORANGE);
-        if (CheckCollisionPointRec(mousePosition, rec_sbMod)) 
+        if (CheckCollisionPointRec(mousePosition, rec_sbMod))
           if (sbMod_active)
             DrawRectangleRoundedLines(rec_sbMod, 0.2, 4, 2, ORANGE);
         if (CheckCollisionPointRec(mousePosition, rec_sbDel))
@@ -655,34 +673,34 @@ int main(void)
             DrawRectangleRoundedLines(rec_sbDel, 0.2, 4, 2, ORANGE);
         if (CheckCollisionPointRec(mousePosition, rec_sbInfo))
           DrawRectangleRoundedLines(rec_sbInfo, 0.2, 4, 2, ORANGE);
-        if (CheckCollisionPointRec(mousePosition, rec_sbExit)) 
+        if (CheckCollisionPointRec(mousePosition, rec_sbExit))
           DrawRectangleRoundedLines(rec_sbExit, 0.2, 4, 2, ORANGE);
 
-        if (sbFirst_active) 
+        if (sbFirst_active)
           DrawTexture(sbFirst,rec_sbFirst.x,72,WHITE);
         else
           DrawTexture(sbFirst_gray,rec_sbFirst.x,72,WHITE);
-        if (sbNext_active) 
+        if (sbNext_active)
           DrawTexture(sbNext,rec_sbNext.x,72,WHITE);
         else
           DrawTexture(sbNext_gray,rec_sbNext.x,72,WHITE);
-        if (sbFind_active) 
+        if (sbFind_active)
           DrawTexture(sbFind,rec_sbFind.x,72,WHITE);
         else
           DrawTexture(sbFind_gray,rec_sbFind.x,72,WHITE);
-        if (sbAdd_active) 
+        if (sbAdd_active)
           DrawTexture(sbAdd,rec_sbAdd.x,72,WHITE);
         else
           DrawTexture(sbAdd_gray,rec_sbAdd.x,72,WHITE);
-        if (sbMod_active) 
+        if (sbMod_active)
           DrawTexture(sbMod,rec_sbMod.x,72,WHITE);
         else
           DrawTexture(sbMod_gray,rec_sbMod.x,72,WHITE);
-        if (sbDel_active) 
+        if (sbDel_active)
           DrawTexture(sbDel,rec_sbDel.x,72,WHITE);
         else
           DrawTexture(sbDel_gray,rec_sbDel.x,72,WHITE);
-            
+
         DrawTexture(sbInfo, rec_sbInfo.x, 72, WHITE);
         DrawTexture(sbExit, rec_sbExit.x, 72, WHITE);
         //
@@ -758,9 +776,9 @@ int main(void)
         DrawTextEx(fontSButton, "372 x 372", commonPos, 14, 2, clLetter);
         if (imageid[0] == '\0')
           DrawTexture(iNoImage,691,86,WHITE);
-        else  
+        else
           DrawTexture(bufferTex,691,86,WHITE);
-  
+
         // MOUSE EVENT!!!
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
           if (CheckCollisionPointRec(mousePosition, rec_sbFirst))
@@ -773,13 +791,13 @@ int main(void)
             if (sbFind_active)
               currentScreen = 5;
           if (CheckCollisionPointRec(mousePosition, rec_sbAdd))
-            if (sbAdd_active){
+            if (sbAdd_active) {
               currentScreen = 6;
               clear_add_fields();
               clear_mod_fields();
             }
           if (CheckCollisionPointRec(mousePosition, rec_sbMod))
-            if (sbMod_active){
+            if (sbMod_active) {
               currentScreen = 7;
               prepare_fields();
             }
@@ -799,21 +817,21 @@ int main(void)
           if (sbNext_active)
             currentScreen = 4;
         if (IsKeyPressed(KEY_F))
-          if (sbFind_active)  
+          if (sbFind_active)
             currentScreen = 5;
         if (IsKeyPressed(KEY_A))
-          if (sbAdd_active){  
+          if (sbAdd_active) {
             currentScreen = 6;
             clear_add_fields();
             clear_mod_fields();
-          }  
+          }
         if (IsKeyPressed(KEY_M))
-          if (sbMod_active){  
+          if (sbMod_active) {
             currentScreen = 7;
             prepare_fields();
-          }  
+          }
         if (IsKeyPressed(KEY_D))
-          if (sbDel_active)  
+          if (sbDel_active)
             currentScreen = 8;
         if (IsKeyPressed(KEY_I))
           currentScreen = 10;
@@ -830,7 +848,7 @@ int main(void)
         keydb = gdbm_firstkey(pigeondb);
         if (keydb.dptr == NULL) {
           squabdb_empty = true;
-        }else {
+        } else {
           squabdb_empty = false;
           sbFirst_active = false;
           if (!sbNext_active)
@@ -930,7 +948,11 @@ int main(void)
         commonPos.x = 252;
         commonPos.y = 261;
         DrawTextEx(fontLabel, "CATEGORY ('High flyer','Roller','Tumbler'):", commonPos, 20, 1, clLabels);
-        if (GuiTextBox((Rectangle){270,295,700,32},eCategory,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
+        rec_common.x = 270;
+        rec_common.y = 295;
+        rec_common.width = 700;
+        rec_common.height = 32;
+        if (GuiTextBox(rec_common,eCategory,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN (Town and Country):", commonPos, 20, 1, clLabels);
@@ -967,61 +989,78 @@ int main(void)
         commonPos2.y = commonPos.y;
         DrawLineEx(commonPos, commonPos2, 4.0, clFrames);
         DrawTexture(iAddLarge,192,65,WHITE);
-        DrawTextEx(fontTitle, "Add a new record.", (Vector2){277,83}, 56, 2, clLabels);
-        bAddSave_click   = GuiButton((Rectangle){461, 630, 88, 32}, "Save");
-        bAddCancel_click = GuiButton((Rectangle){791, 630, 88, 32}, "Cancel");
-        if (bAddSave_click){
-    
+        DrawTextEx(fontTitle, "Add a new record.", (Vector2) {
+          277,83
+        }, 56, 2, clLabels);
+        bAddSave_click   = GuiButton((Rectangle) {
+          461, 630, 88, 32
+        }, "Save");
+        bAddCancel_click = GuiButton((Rectangle) {
+          791, 630, 88, 32
+        }, "Cancel");
+        if (bAddSave_click) {
+
           // transfer the fields in the buffer and update the record
-          strcpy(eBreed_buff, trim(eBreed,NULL));
-          strcpy(eCategory_buff, trim(eCategory,NULL));
-          strcpy(eOrigin_buff, trim(eOrigin,NULL));
-          strcpy(eImageid_buff, trim(eImageid,NULL));
-          strcpy(eDescription_buff, ltrim(eDesc1, NULL));
-          strcat(eDescription_buff, rtrim(eDesc2, NULL));
-          // reconstruct the recordBuffer
-          strcpy(recordBuffer, eCategory_buff);
-          strcat(recordBuffer, ";");
-          strcat(recordBuffer, eOrigin_buff);
-          strcat(recordBuffer, ";");
-          strcat(recordBuffer, eDescription_buff);
-          strcat(recordBuffer, ";");
-          strcat(recordBuffer, eImageid_buff);
+          strcpy(eBreed,trim(eBreed,NULL));
+          strcpy(eCategory,trim(eCategory,NULL));
+          strcpy(eOrigin,trim(eOrigin,NULL));
+          strcpy(eImageid,trim(eImageid,NULL));
+          strcpy(eDesc1, ltrim(eDesc1, NULL));
+          strcpy(eDesc2, rtrim(eDesc2, NULL));
+          //
+          /*
+          strcpy(eBreed_buff, eBreed);
+          strcpy(eCategory_buff, eCategory);
+          strcpy(eOrigin_buff, eOrigin);
+          strcpy(eImageid_buff, eImageid);*/
+          strcpy(eDescription_buff, eDesc1);
+          strcat(eDescription_buff, eDesc2); 
           //
           add_err = 0;
-          if (eBreed_buff[0] == '\0'){
+          if (eBreed[0] == '\0') {
             add_err = 1;
             strcpy(err_msg, "The key (breed) can't be empty!");
           }
-          if (eCategory_buff[0] == '\0'){
+          if (eCategory[0] == '\0') {
             add_err = 1;
             strcpy(err_msg, "The category can't be empty!");
           }
-          if (eImageid_buff[0] == '\0') 
-            strcpy(eImageid_buff, "noimage.png");
-          //
+          if (eDesc1[0] == '\0') {
+            add_err = 1;
+            strcpy(err_msg, "The description can't be empty!");
+          }
+          if (eImageid[0] == '\0')
+            strcpy(eImageid, "noimage.png");
+          // display error:
           if(add_err > 0) currentScreen = 17;
-          if (add_err == 0){
+          if (add_err == 0) {
+            // reconstruct the recordBuffer
+            strcpy(recordBuffer, eCategory);
+            strcat(recordBuffer, ";");
+            strcat(recordBuffer, eOrigin);
+            strcat(recordBuffer, ";");
+            strcat(recordBuffer, eDescription_buff);
+            strcat(recordBuffer, ";");
+            strcat(recordBuffer, eImageid);
             keydb = gdbm_firstkey(pigeondb); //this is needed if you
-            strcpy(keydb.dptr, eBreed_buff);       // navigate beyond last record
-            keydb.dsize = strlen(eBreed_buff);
-            if(gdbm_exists(pigeondb,keydb) == false){
+            strcpy(keydb.dptr, eBreed);       // navigate beyond last record
+            keydb.dsize = strlen(eBreed);
+            if(gdbm_exists(pigeondb,keydb) == false) {
               //datadb = gdbm_fetch(pigeondb,keydb);
               strcpy(datadb.dptr, recordBuffer);
               datadb.dsize = strlen(recordBuffer);
-              if (gdbm_store(pigeondb,keydb,datadb,GDBM_INSERT) != GDBM_NO_ERROR) 
+              if (gdbm_store(pigeondb,keydb,datadb,GDBM_INSERT) != GDBM_NO_ERROR)
                 printf("Error inserting data\r\n");
               clear_add_fields();
               clear_buffer_fields();
               currentScreen = 3; //goto first record because the key order might change if adding a record
-            }
-            else {
+            } else {
               strcpy(err_msg, "ERROR! Key (breed) already in database!");
               currentScreen = 17;
             }
           }
         }
-        if (bAddCancel_click){
+        if (bAddCancel_click) {
           // no transfer...
           currentScreen = 3;
         }
@@ -1032,6 +1071,7 @@ int main(void)
        */
       if (currentScreen == 7) {
         //
+        originated = 7;
         ClearBackground(clBackground);
         DrawRectangle(pMain_posX,pMain_posY,896,640,clPanel); // SECONDARY PANEL
         commonPos.x = 252;
@@ -1043,7 +1083,9 @@ int main(void)
         commonPos.x = 252;
         commonPos.y = 261;
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
-        if (GuiTextBox((Rectangle){270,295,700,32},eCategory,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
+        if (GuiTextBox((Rectangle) {
+          270,295,700,32
+        },eCategory,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
@@ -1080,38 +1122,63 @@ int main(void)
         commonPos2.y = commonPos.y;
         DrawLineEx(commonPos, commonPos2, 4.0, clFrames);
         DrawTexture(iModLarge,201,65,WHITE);
-        DrawTextEx(fontTitle, "Modify the record (navigation).", (Vector2){277,83}, 56, 2, clLabels);
-        bModSave_click = GuiButton((Rectangle){461, 630, 88, 32}, "Save");
-        bModCancel_click = GuiButton((Rectangle){791, 630, 88, 32}, "Cancel");
-        if (bModSave_click){
-          currentScreen = 3; //goto first record because the key order might change if modifying a record
-          // transefer the fields in the buffer and update the record
+        DrawTextEx(fontTitle, "Modify the record (navigation).", (Vector2) {
+          277,83
+        }, 56, 2, clLabels);
+        bModSave_click = GuiButton((Rectangle) {
+          461, 630, 88, 32
+        }, "Save");
+        bModCancel_click = GuiButton((Rectangle) {
+          791, 630, 88, 32
+        }, "Cancel");
+        if (bModSave_click) {
+          mod_err = 0;
+          // transfer the fields in the buffer and update the record if no err
           strcpy(category, trim(eCategory,NULL));
           strcpy(origin, trim(eOrigin,NULL));
           strcpy(imageid, trim(eImageid,NULL));
           strcpy(description, ltrim(eDesc1, NULL));
           strcat(description, rtrim(eDesc2, NULL));
-          // reconstruct the recordBuffer2
-          strcpy(recordBuffer, category);
-          strcat(recordBuffer, ";");
-          strcat(recordBuffer, origin);
-          strcat(recordBuffer, ";");
-          strcat(recordBuffer, description);
-          strcat(recordBuffer, ";");
-          strcat(recordBuffer, imageid);
-          //
-          keydb = gdbm_firstkey(pigeondb); //this is needed if you
-          strcpy(keydb.dptr, breed);       // navigate beyond last record
-          keydb.dsize = strlen(breed);
-          datadb = gdbm_fetch(pigeondb,keydb);
-          strcpy(datadb.dptr, recordBuffer);
-          datadb.dsize = strlen(recordBuffer);
-          if (gdbm_store(pigeondb,keydb,datadb,GDBM_REPLACE) != GDBM_NO_ERROR) 
-            printf("Error replacing data\r\n");
+          if (category[0] == '\0'){
+            mod_err = 1;
+            strcpy(err_msg, "Category can't be empty!");
+          }
+          if (origin[0] == '\0'){
+            mod_err = 1;
+            strcpy(err_msg, "Origin can't be empty!");
+          }
+          if (description[0] == '\0'){
+            mod_err = 1;
+            strcpy(err_msg, "Description can't be empty!");
+          }
+          if (imageid[0] == '\0'){
+            strcpy(imageid, "noimage.png");
+          }
+          if(mod_err > 0) currentScreen = 17;
+          if(mod_err == 0){
+            currentScreen = 3;
+            // reconstruct the recordBuffer2
+            strcpy(recordBuffer, category);
+            strcat(recordBuffer, ";");
+            strcat(recordBuffer, origin);
+            strcat(recordBuffer, ";");
+            strcat(recordBuffer, description);
+            strcat(recordBuffer, ";");
+            strcat(recordBuffer, imageid);
+            //
+            keydb = gdbm_firstkey(pigeondb); //this is needed if you
+            strcpy(keydb.dptr, breed);       // navigate beyond last record
+            keydb.dsize = strlen(breed);
+            datadb = gdbm_fetch(pigeondb,keydb);
+            strcpy(datadb.dptr, recordBuffer);
+            datadb.dsize = strlen(recordBuffer);
+            if (gdbm_store(pigeondb,keydb,datadb,GDBM_REPLACE) != GDBM_NO_ERROR)
+              printf("Error replacing data\r\n");
+          }
         }
-        if (bModCancel_click){
+        if (bModCancel_click) {
           // no transfer...
-          currentScreen = originated;
+          currentScreen = 3;
         }
       }
       /* ==================================================================================
@@ -1136,11 +1203,15 @@ int main(void)
         rec_common.height = 40;
         DrawRectangleRounded(rec_common, 0.6,4,clBrick);
         commonPos.x = 501;
-        commonPos.y = 542; 
+        commonPos.y = 542;
         DrawTextEx(fontLabel, "Do you really want to delete this record?", commonPos, 20, 1, WHITE);
-        bDelYes_click = GuiButton((Rectangle){461, 590, 60, 28}, "Yes");
-        bDelNo_click = GuiButton((Rectangle){791, 590, 60, 28}, "No");
-        if ((bDelNo_click) || (IsKeyPressed(KEY_N)))  
+        bDelYes_click = GuiButton((Rectangle) {
+          461, 590, 60, 28
+        }, "Yes");
+        bDelNo_click = GuiButton((Rectangle) {
+          791, 590, 60, 28
+        }, "No");
+        if ((bDelNo_click) || (IsKeyPressed(KEY_N)))
           currentScreen = 2;
         if ((bDelYes_click) || (IsKeyPressed(KEY_Y))) {
           currentScreen = 3; // go to reading the first key...
@@ -1254,7 +1325,7 @@ int main(void)
           currentScreen = 2;
           bErrorNextKey_click = false;
         }
-        if (IsKeyPressed(KEY_ENTER)){
+        if (IsKeyPressed(KEY_ENTER)) {
           currentScreen = 2;
           bErrorNextKey_click = false;
         }
@@ -1286,10 +1357,10 @@ int main(void)
           currentScreen = originated;
           bErrorFindKey_click = false;
         }
-        if (IsKeyPressed(KEY_ENTER)){
+        if (IsKeyPressed(KEY_ENTER)) {
           currentScreen = originated;
           bErrorFindKey_click = false;
-        }  
+        }
       }
       /* ==================================================================================
        * FIND RESULT SCREEN
@@ -1305,7 +1376,7 @@ int main(void)
         DrawTextEx(fontLabel, "BREED NAME:", commonPos, 20, 1, clLabels);
         commonPos.x = 270;
         commonPos.y = 215;
-        if (breed_buff[0] == '\0') 
+        if (breed_buff[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
           DrawTextEx(fontLetter, breed_buff, commonPos, 24, 1, clLabels);
@@ -1314,7 +1385,7 @@ int main(void)
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
         commonPos.x = 270;
         commonPos.y = 295;
-        if (category_buff[0] == '\0') 
+        if (category_buff[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
           DrawTextEx(fontLetter, category_buff, commonPos, 24, 1, clLabels);
@@ -1323,7 +1394,7 @@ int main(void)
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
         commonPos.x = 270;
         commonPos.y = 375;
-        if (origin_buff[0] == '\0') 
+        if (origin_buff[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
           DrawTextEx(fontLetter, origin_buff, commonPos, 24, 1, clLabels);
@@ -1341,42 +1412,50 @@ int main(void)
         commonPos2.y= commonPos.y;
         DrawLineEx(commonPos, commonPos2, 4.0, clFrames);
         DrawTexture(iFindLarge,189,13,WHITE);
-        DrawTextEx(fontTitle, "I Found It!", (Vector2){337,83}, 56, 2, clLabels);
+        DrawTextEx(fontTitle, "I Found It!", (Vector2) {
+          337,83
+        }, 56, 2, clLabels);
         DrawRectangleRounded(rec_photoFrame,0.1,4,clPhoto);
-        if (imageid_buff[0] == '\0') 
+        if (imageid_buff[0] == '\0')
           DrawTexture(iNoImage,691,86,WHITE);
-        else  
+        else
           DrawTexture(bufferTex2,691,86,WHITE);
-              
-        bResultMod_click   = GuiButton((Rectangle){762, 576, 88, 32}, "Modify");
-        bResultDel_click   = GuiButton((Rectangle){862, 576, 88, 32}, "Delete");
-        bResultClose_click = GuiButton((Rectangle){962, 576, 88, 32}, "Close");
-            
-        if ((bResultClose_click) || (IsKeyPressed(KEY_C))){
+
+        bResultMod_click   = GuiButton((Rectangle) {
+          762, 576, 88, 32
+        }, "Modify");
+        bResultDel_click   = GuiButton((Rectangle) {
+          862, 576, 88, 32
+        }, "Delete");
+        bResultClose_click = GuiButton((Rectangle) {
+          962, 576, 88, 32
+        }, "Close");
+
+        if ((bResultClose_click) || (IsKeyPressed(KEY_C))) {
           currentScreen = 2;
           bResultClose_click = false;
-        }  
-        if ((bResultDel_click) || (IsKeyPressed(KEY_D))){
+        }
+        if ((bResultDel_click) || (IsKeyPressed(KEY_D))) {
           currentScreen = 15;
           bResultDel_click = false;
-        }  
+        }
         if ((bResultMod_click) || (IsKeyPressed(KEY_M))) {
           ln = strlen(description_buff);
           currentScreen = 16;
           bResultMod_click = false;
           strcpy(eCategory_buff, category_buff);
           strcpy(eOrigin_buff, origin_buff);
-          strcpy(eImageid_buff, imageid_buff);  
-          if (ln <= 50){
+          strcpy(eImageid_buff, imageid_buff);
+          if (ln <= 50) {
             strcpy(eDesc1_buff, description_buff);
             eDesc2_buff[0] = '\0';
-          }else{
+          } else {
             strncpy(eDesc1_buff, description_buff, 50);
-            for(i=50;i<ln;i++)
+            for(i=50; i<ln; i++)
               eDesc2_buff[i-50] = description_buff[i];
             eDesc2_buff[ln-50] = '\0';
           }
-        }  
+        }
       }
       /* ==================================================================================
        * FIND RESULT DELETE SCREEN
@@ -1422,6 +1501,7 @@ int main(void)
        * ==================================================================================
        */
       if (currentScreen == 16) {
+        originated = 16;
         ClearBackground(clBackground);
         DrawRectangle(pMain_posX,pMain_posY,896,640,clPanel); // SECONDARY PANEL
         commonPos.x = 252;
@@ -1433,7 +1513,9 @@ int main(void)
         commonPos.x = 252;
         commonPos.y = 261;
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
-        if (GuiTextBox((Rectangle){270,295,700,32},eCategory_buff,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
+        if (GuiTextBox((Rectangle) {
+        270,295,700,32
+      },eCategory_buff,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
@@ -1470,46 +1552,68 @@ int main(void)
         commonPos2.y = commonPos.y;
         DrawLineEx(commonPos, commonPos2, 4.0, clFrames);
         DrawTexture(iModLarge,201,65,WHITE);
-        DrawTextEx(fontTitle, "Modify the record (search result).", (Vector2){277,83}, 56, 2, clLabels);
-        bModSave_click = GuiButton((Rectangle){461, 630, 88, 32}, "Save");
-        bModCancel_click = GuiButton((Rectangle){791, 630, 88, 32}, "Cancel");
-        if (bModSave_click){
-          currentScreen = originated;
-          // transefer the fields in the buffer and update the record
+        DrawTextEx(fontTitle, "Modify the record (search result).", (Vector2) {
+          277,83
+        }, 56, 2, clLabels);
+        bModSave_click = GuiButton((Rectangle) {
+          461, 630, 88, 32
+        }, "Save");
+        bModCancel_click = GuiButton((Rectangle) {
+          791, 630, 88, 32
+        }, "Cancel");
+        if (bModSave_click) {
+          mod_err = 0;
+          // transfer the fields in the buffer and update the record if no err
           strcpy(category_buff, trim(eCategory_buff,NULL));
           strcpy(origin_buff, trim(eOrigin_buff,NULL));
           strcpy(imageid_buff, trim(eImageid_buff,NULL));
           strcpy(description_buff, ltrim(eDesc1_buff, NULL));
           strcat(description_buff, rtrim(eDesc2_buff, NULL));
+          if (category_buff[0] =='\0'){
+            mod_err = 1;
+            strcpy(err_msg, "Category can't be empty!");
+          }
+          if (origin_buff[0] =='\0'){
+            mod_err = 1;
+            strcpy(err_msg, "Origin can't be empty!");
+          }
+          if (description_buff[0] =='\0'){
+            mod_err = 1;
+            strcpy(err_msg, "Description can't be empty!");
+          }
           if (imageid_buff[0] == '\0')
             strcpy(imageid_buff, "noimage.png");
-          // reconstruct the recordBuffer2
-          strcpy(recordBuffer2, category_buff);
-          strcat(recordBuffer2, ";");
-          strcat(recordBuffer2, origin_buff);
-          strcat(recordBuffer2, ";");
-          strcat(recordBuffer2, description_buff);
-          strcat(recordBuffer2, ";");
-          strcat(recordBuffer2, imageid_buff);
-          //
-          keydb2 = gdbm_firstkey(pigeondb);
-          strcpy(keydb2.dptr, breed_buff);
-          keydb2.dsize = strlen(breed_buff);
-          datadb2 = gdbm_fetch(pigeondb, keydb2);
-          strcpy(datadb2.dptr, recordBuffer2);
-          datadb2.dsize = strlen(recordBuffer2);
-          if (gdbm_store(pigeondb,keydb2,datadb2,GDBM_REPLACE) != GDBM_NO_ERROR) 
-            printf("Error inserting data\r\n");
-          else 
-            load_imageid(imageid_buff, &bufferTex2);
+          if (mod_err > 0) currentScreen = 17;
+          if (mod_err == 0){
+            currentScreen = 14;
+            // reconstruct the recordBuffer2
+            strcpy(recordBuffer2, category_buff);
+            strcat(recordBuffer2, ";");
+            strcat(recordBuffer2, origin_buff);
+            strcat(recordBuffer2, ";");
+            strcat(recordBuffer2, description_buff);
+            strcat(recordBuffer2, ";");
+            strcat(recordBuffer2, imageid_buff);
+            //
+            keydb2 = gdbm_firstkey(pigeondb);
+            strcpy(keydb2.dptr, breed_buff);
+            keydb2.dsize = strlen(breed_buff);
+            datadb2 = gdbm_fetch(pigeondb, keydb2);
+            strcpy(datadb2.dptr, recordBuffer2);
+            datadb2.dsize = strlen(recordBuffer2);
+            if (gdbm_store(pigeondb,keydb2,datadb2,GDBM_REPLACE) != GDBM_NO_ERROR)
+              printf("Error inserting data\r\n");
+            else
+              load_imageid(imageid_buff, &bufferTex2);
+          }
         }
-        if (bModCancel_click){
+        if (bModCancel_click) {
           // no transfer...
-          currentScreen = originated;
+          currentScreen = 14;
         }
       }
       /* ==================================================================================
-       * ERRORS FROM ADD SCREEN
+       * ERRORS FROM ADD AND MOD SCREENS
        * ==================================================================================
        */
       if (currentScreen == 17) {
@@ -1531,10 +1635,10 @@ int main(void)
           631, 590, 60, 28
         }, "Ok");
         if ((bErrorAddKey_click) || (IsKeyPressed(KEY_ENTER))) {
-          currentScreen = 6;
+          currentScreen = originated;
           bErrorAddKey_click = false;
         }
-      }  
+      }
       EndDrawing();
     }
     UnloadFont(fontTitle);
