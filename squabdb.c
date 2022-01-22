@@ -1,6 +1,6 @@
 /*
  * SquabDB is a small Pigeon Database application,
- * intended as a demonstration for qdbm database engine and
+ * intended as a demonstration for typhoon database engine and
  * for raylib 4.0 + raygui 3.0
  *
  * Copyright 2022 by Vasile Guta-Ciucur and Lorena Guta-Ciucur
@@ -9,13 +9,17 @@
  *
  */
 
+#include <stdio.h>
 #include <stdint.h>
-#include <hovel.h> /* gdbm compatible functions */
 #include <raylib.h>
 #define  RAYGUI_IMPLEMENTATION
 #include <raygui.h>
 #include <string.h>
+#include "environ.h"
 #include <unistd.h>
+#include <sys/stat.h>
+#include "squabdb.h"
+#include "typhoon.h"
 //#include "leaks.h"
 
 #define clTeal        CLITERAL(Color){97, 190, 221, 255}
@@ -51,14 +55,16 @@ Texture2D iPigeon_Welcome, iPigeon_Bye;
 Texture2D iSlime1, iSlime2;
 Texture2D iAbout, iGrass1a, iGrass2b, iFirefly1, iFirefly2, iLadybug;
 Texture2D iFindLarge, iAddLarge, iModLarge;
-Texture2D sbFirst,sbNext,sbFind,sbAdd,sbMod,sbDel,sbInfo,sbExit;
-Texture2D sbFirst_gray,sbNext_gray,sbFind_gray,sbAdd_gray,sbMod_gray,sbDel_gray;
+Texture2D sbFirst,sbPrev,sbNext,sbLast,sbFind,sbAdd,sbMod,sbDel,sbInfo,sbExit;
+Texture2D sbFirst_gray,sbPrev_gray,sbNext_gray,sbLast_gray,sbFind_gray,sbAdd_gray,sbMod_gray,sbDel_gray;
 
 Vector2 mousePosition, commonPos, commonPos2;
 
 Rectangle rec_cbTheme, rec_photoFrame, rec_common;
 Rectangle rec_sbFirst;
+Rectangle rec_sbPrev;
 Rectangle rec_sbNext;
+Rectangle rec_sbLast;
 Rectangle rec_sbFind;
 Rectangle rec_sbAdd;
 Rectangle rec_sbMod;
@@ -85,7 +91,9 @@ bool bAddCancel_click;
 bool bErrorAddKey_click;
 // speedbuttons status
 bool sbFirst_active;
+bool sbPrev_active;
 bool sbNext_active;
+bool sbLast_active;
 bool sbFind_active;
 bool sbAdd_active;
 bool sbMod_active;
@@ -106,47 +114,44 @@ bool bResultClose_click, bResultDel_click, bResultMod_click;
 int stp;
 
 // database elements
-GDBM_FILE  pigeondb; // qdbm file
-datum      keydb, datadb, keydb2, datadb2, keydb_temp;
-gdbm_error pigeondb_error;
-bool       squabdb_empty, cycle_common;
+struct breeds breeds;
+DB_ADDR cr_rec;
+bool squabdb_empty, cycle_common;
 
 char image_path[71] = "";
 char project_subfolder[10] = "pictures/";
 //
 char breed[60] = "";
-char category[11] = "";
-char origin[60] = "";
-char imageid[60] = "";
-char description[100] = "";
-char desc1[50] = "";
-char desc2[50] = "";
-char recordBuffer[294] = "";
-char recordBuffer2[294] = "";
+char cat[11] = "";
+char orig[60] = "";
+char imgid[60] = "";
+char desc[160] = "";
+char desc1[80] = "";
+char desc2[80] = "";
 //
 char eBreed[60] = "";
-char eCategory[11] = "";
-char eOrigin[60] = "";
-char eImageid[60] = "";
-char eDescription[100] = "";
-char eDesc1[50] = "";
-char eDesc2[50] = "";
+char eCat[11] = "";
+char eOrig[60] = "";
+char eImgid[60] = "";
+char eDesc[160] = "";
+char eDesc1[80] = "";
+char eDesc2[80] = "";
 //
 char breed_buff[60] = "";
-char category_buff[11] = "";
-char origin_buff[60] = "";
-char imageid_buff[60] = "";
-char description_buff[100] = "";
-char desc1_buff[50] = "";
-char desc2_buff[50] = "";
+char cat_buff[11] = "";
+char orig_buff[60] = "";
+char imgid_buff[60] = "";
+char desc_buff[160] = "";
+char desc1_buff[80] = "";
+char desc2_buff[80] = "";
 //
 char eBreed_buff[60] = "";
-char eCategory_buff[11] = "";
-char eOrigin_buff[60] = "";
-char eImageid_buff[60] = "";
-char eDescription_buff[100] = "";
-char eDesc1_buff[50] = "";
-char eDesc2_buff[50] = "";
+char eCat_buff[11] = "";
+char eOrig_buff[60] = "";
+char eImgid_buff[60] = "";
+char eDesc_buff[160] = "";
+char eDesc1_buff[80] = "";
+char eDesc2_buff[80] = "";
 
 char eText[60] = "";
 
@@ -155,10 +160,10 @@ char err_msg[50] = "";
 void clear_mod_fields(void)
 {
   eBreed_buff[0] = '\0';
-  eCategory_buff[0] = '\0';
-  eOrigin_buff[0] = '\0';
-  eImageid_buff[0] = '\0';
-  eDescription_buff[0] = '\0';
+  eCat_buff[0] = '\0';
+  eOrig_buff[0] = '\0';
+  eImgid_buff[0] = '\0';
+  eDesc_buff[0] = '\0';
   eDesc1_buff[0] = '\0';
   eDesc2_buff[0] = '\0';
 }
@@ -167,10 +172,10 @@ void clear_mod_fields(void)
 void clear_add_fields(void)
 {
   eBreed[0] = '\0';
-  eCategory[0] = '\0';
-  eOrigin[0] = '\0';
-  eImageid[0] = '\0';
-  //description[0] = '\0';
+  eCat[0] = '\0';
+  eOrig[0] = '\0';
+  eImgid[0] = '\0';
+  eDesc[0] = '\0';
   eDesc1[0] = '\0';
   eDesc2[0] = '\0';
 }
@@ -178,10 +183,10 @@ void clear_add_fields(void)
 void clear_buffer_fields(void)
 {
   breed_buff[0] = '\0';
-  category_buff[0] = '\0';
-  origin_buff[0] = '\0';
-  imageid_buff[0] = '\0';
-  //description_buff[100] = '\0';
+  cat_buff[0] = '\0';
+  orig_buff[0] = '\0';
+  imgid_buff[0] = '\0';
+  desc_buff[0] = '\0';
   desc1_buff[0] = '\0';
   desc2_buff[0] = '\0';
   //
@@ -191,13 +196,12 @@ void clear_fields(void)
 {
   //
   breed[0] = '\0';
-  category[0] = '\0';
-  origin[0] = '\0';
-  imageid[0] = '\0';
-  //description[0] = '\0';
+  cat[0] = '\0';
+  orig[0] = '\0';
+  imgid[0] = '\0';
+  desc[0] = '\0';
   desc1[0] = '\0';
   desc2[0] = '\0';
-  recordBuffer[0] = '\0';
 }
 
 char *ltrim(char *str, const char *seps)
@@ -235,54 +239,6 @@ char *rtrim(char *str, const char *seps)
 char *trim(char *str, const char *seps)
 {
   return ltrim(rtrim(str, seps), seps);
-}
-
-void split_words3sep(char *s1, char *s2, char *s3, char *s4, char *s5)
-{
-  uint16_t i,z,ln;
-  uint8_t cnt;
-  cnt=0;
-  ln = strlen(s5);
-  for(i=0; i<ln; i++)  // check separators
-    if(s5[i]==';') cnt++;
-  if(cnt==3) {
-    for(i=0; i<ln; i++) {
-      if(s5[i] != ';')
-        s1[i] = s5[i];
-      else {
-        s1[i] = '\0';
-        z = i+1;
-        break;
-      }
-    }
-    for(i=z; i<ln; i++) {
-      if(s5[i] != ';')
-        s2[i-z] = s5[i];
-      else {
-        s2[i-z] = '\0';
-        z = i+1;
-        break;
-      }
-    }
-    for(i=z; i<ln; i++) {
-      if(s5[i] != ';')
-        s3[i-z] = s5[i];
-      else {
-        s3[i-z] = '\0';
-        z = i+1;
-        break;
-      }
-    }
-    for(i=z; i<ln; i++) s4[i-z] = s5[i];
-    s4[ln-z] = '\0';
-  } else {
-    //
-    s1[0] = '\00';
-    s2[0] = '\00';
-    s3[0] = '\00';
-    s4[0] = '\00';
-    printf("Error! Malformed data - more or less than 3 ';' separators!\r\n");
-  }
 }
 
 uint8_t i, ln, add_err, mod_err;
@@ -323,18 +279,19 @@ void load_imageid(char *im, Texture *tex)
 
 void prepare_fields()
 {
-  ln = strlen(description);
-  strcpy(eCategory, category);
-  strcpy(eOrigin, origin);
-  strcpy(eImageid, imageid);
-  if (ln <= 50) {
-    strcpy(eDesc1, description);
+  d_crget(&cr_rec);
+  ln = strlen(desc);
+  strcpy(eCat, cat);
+  strcpy(eOrig, orig);
+  strcpy(eImgid, imgid);
+  if (ln <= 80) {
+    strcpy(eDesc1, desc);
     eDesc2[0] = '\0';
   } else {
-    strncpy(eDesc1, description, 50);
-    for(i=50; i<ln; i++)
-      eDesc2[i-50] = description[i];
-    eDesc2[ln-50] = '\0';
+    strncpy(eDesc1, desc, 80);
+    for(i=80; i<ln; i++)
+      eDesc2[i-80] = desc[i];
+    eDesc2[ln-80] = '\0';
   }
 }
 
@@ -345,27 +302,37 @@ int main(void)
   // Database stuff
   //--------------------------------------------------------------------
   clear_fields();
-  pigeondb=gdbm_open("squabdb.dat",1024,GDBM_WRCREAT | GDBM_SYNC,432,NULL);
-  if (pigeondb != NULL) {
-    keydb = gdbm_firstkey(pigeondb);
-    keydb2 = keydb; // initialize also keydb2...
-    if (keydb.dptr == NULL) {
+  clear_buffer_fields();
+  clear_mod_fields();
+  clear_add_fields();
+
+  mkdir("data", 0777);
+  d_dbfpath("data");
+  if( d_open("squabdb", "x") == S_OKAY ){
+    d_keyfrst(NAME);
+    if (db_status == S_NOTFOUND) {
       squabdb_empty = true;
       printf("Database empty!\r\n");
-    } else {
+    } else if(db_status == S_OKAY) {
       squabdb_empty = false;
-      strcpy(breed, keydb.dptr);
-      datadb = gdbm_fetch(pigeondb,keydb);
-      datadb2 = datadb; // initialize also datadb2...
-      strcpy(recordBuffer, datadb.dptr);
-      split_words3sep(category,origin,description,imageid, recordBuffer);
-      //
-      sbFirst_active = false;
-      sbNext_active  = true;
-      sbFind_active  = true;
-      sbAdd_active   = true;
-      sbMod_active   = true;
-      sbDel_active   = true;
+      d_recread(&breeds);
+      if(db_status == S_OKAY){
+        strcpy(breed, breeds.name);
+        strcpy(cat, breeds.category);
+        strcpy(orig, breeds.origin);
+        strcpy(imgid, breeds.imageid);
+        strcpy(desc, breeds.description);
+        //
+        sbFirst_active = false;
+        sbPrev_active  = false;
+        sbNext_active  = true;
+        sbLast_active  = true;
+        sbFind_active  = true;
+        sbAdd_active   = true;
+        sbMod_active   = true;
+        sbDel_active   = true;
+      }
+      else printf("Record reading error! \r\n");
     }
     //----------------------------------------------------------------
     // GRAPHIC STUFF
@@ -373,7 +340,7 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "SquabDB - Pigeon Database");
     GuiSetStyle(DEFAULT, TEXT_SIZE, 16);
     GuiSetState(GUI_STATE_NORMAL);
-    SetTargetFPS(60);
+    SetTargetFPS(16);
     SetExitKey(0);
     bool exitWindow = false;
 
@@ -390,7 +357,7 @@ int main(void)
     Font fontLabel   = LoadFontEx("style/FreeSans.ttf", 20, 0, 0);
     Font fontSButton = LoadFontEx("style/Mecha.ttf", 14, 0, 0);
     Font fontDesc    = LoadFontEx("style/Mecha.ttf", 16, 0, 0);
-    load_imageid(imageid, &bufferTex);
+    load_imageid(imgid, &bufferTex);
     bufferIcon = LoadImage("pictures/noimage.png");
     iNoImage = LoadTextureFromImage(bufferIcon);
     UnloadImage(bufferIcon);
@@ -444,8 +411,16 @@ int main(void)
     sbFirst = LoadTextureFromImage(bufferIcon);
     UnloadImage(bufferIcon);
     //
+    bufferIcon = LoadImage("img/general/prev.png");
+    sbPrev = LoadTextureFromImage(bufferIcon);
+    UnloadImage(bufferIcon);
+    //
     bufferIcon = LoadImage("img/general/next.png");
     sbNext = LoadTextureFromImage(bufferIcon);
+    UnloadImage(bufferIcon);
+    //
+    bufferIcon = LoadImage("img/general/last.png");
+    sbLast = LoadTextureFromImage(bufferIcon);
     UnloadImage(bufferIcon);
     //
     bufferIcon = LoadImage("img/general/find.png");
@@ -476,8 +451,16 @@ int main(void)
     sbFirst_gray = LoadTextureFromImage(bufferIcon);
     UnloadImage(bufferIcon);
     //
+    bufferIcon = LoadImage("img/general/prev_gray.png");
+    sbPrev_gray = LoadTextureFromImage(bufferIcon);
+    UnloadImage(bufferIcon);
+    //
     bufferIcon = LoadImage("img/general/next_gray.png");
     sbNext_gray = LoadTextureFromImage(bufferIcon);
+    UnloadImage(bufferIcon);
+    //
+    bufferIcon = LoadImage("img/general/last_gray.png");
+    sbLast_gray = LoadTextureFromImage(bufferIcon);
     UnloadImage(bufferIcon);
     //
     bufferIcon = LoadImage("img/general/find_gray.png");
@@ -510,55 +493,65 @@ int main(void)
     cbTheme_idx = 0;
     cbTheme_edit = false;
 
-    rec_sbFirst.x = 252;
+    rec_sbFirst.x = 252 - 48;
     rec_sbFirst.y = 72;
     rec_sbFirst.width = 32;
     rec_sbFirst.height = 32;
+
+    rec_sbPrev.x = 252;
+    rec_sbPrev.y = 72;
+    rec_sbPrev.width = 32;
+    rec_sbPrev.height = 32;
 
     rec_sbNext.x = 300;
     rec_sbNext.y = 72;
     rec_sbNext.width = 32;
     rec_sbNext.height = 32;
 
-    rec_sbFind.x = 348;
+    rec_sbLast.x = 348;
+    rec_sbLast.y = 72;
+    rec_sbLast.width = 32;
+    rec_sbLast.height = 32;
+
+    rec_sbFind.x = 348+48;
     rec_sbFind.y = 72;
     rec_sbFind.width = 32;
     rec_sbFind.height = 32;
 
-    rec_sbAdd.x = 396;
+    rec_sbAdd.x = 396+48;
     rec_sbAdd.y = 72;
     rec_sbAdd.width = 32;
     rec_sbAdd.height = 32;
 
-    rec_sbMod.x = 444;
+    rec_sbMod.x = 444+48;
     rec_sbMod.y = 72;
     rec_sbMod.width = 32;
     rec_sbMod.height = 32;
 
-    rec_sbDel.x = 492;
+    rec_sbDel.x = 492+48;
     rec_sbDel.y = 72;
     rec_sbDel.width = 32;
     rec_sbDel.height = 32;
 
-    rec_sbInfo.x = 540;
+    rec_sbInfo.x = 540+48;
     rec_sbInfo.y = 72;
     rec_sbInfo.width = 32;
     rec_sbInfo.height = 32;
 
-    rec_sbExit.x = 588;
+    rec_sbExit.x = 588+48;
     rec_sbExit.y = 72;
     rec_sbExit.width = 32;
     rec_sbExit.height = 32;
 
     //
-    rec_photoFrame.x = 677;
+    rec_photoFrame.x = 677+48;
     rec_photoFrame.y = 72;
     rec_photoFrame.width = 400;
     rec_photoFrame.height = 400;
 
 
-    uint8_t originated = 2;
-    uint8_t currentScreen = 1;
+    int8_t originated = 0;
+    int8_t currentScreen = -1;
     while(!exitWindow) {
       mousePosition = GetMousePosition();
       BeginDrawing();
@@ -566,7 +559,7 @@ int main(void)
        * SPLASH SCREEN
        * ==================================================================================
        */
-      if (currentScreen == 1) {
+      if (currentScreen == -1) {
         ClearBackground(clBackground);
         DrawRectangle(pSplash_posX,pSplash_posY,696,664-204,clPanel);
         DrawTexture(iPigeon_Welcome, 200,100, WHITE);
@@ -578,7 +571,7 @@ int main(void)
         DrawTextEx(fontLetter, "SquabDB is a little Pigeon database, intended as", commonPos, 24, 2, clLabels);
         commonPos.x = (float)pSplash_posX + 180;
         commonPos.y = (float)pSplash_posY + 174;
-        DrawTextEx(fontLetter, "demonstrator for qdbm database engine, raylib", commonPos, 24, 2, clLabels);
+        DrawTextEx(fontLetter, "demonstrator for typhoon database engine, raylib", commonPos, 24, 2, clLabels);
         commonPos.x = (float)pSplash_posX + 180;
         commonPos.y = (float)pSplash_posY + 198;
         DrawTextEx(fontLetter, "and raygui graphical libraries. ", commonPos, 24, 2, clLabels);
@@ -610,7 +603,7 @@ int main(void)
         if ((bSplashClose_click) || (IsKeyPressed(KEY_ENTER))) {
           bSplashClose_click = false;
           //exitWindow = true;
-          currentScreen = 2;
+          currentScreen = 0;
           if (cbTheme_idx == 1) {
             GuiLoadStyle("style/squabdb_light.rgs");
             clBackground = clLightBlue;
@@ -626,12 +619,14 @@ int main(void)
        * MAIN SCREEN
        * ==================================================================================
        */
-      if (currentScreen == 2) {
+      if (currentScreen == 0) {
         //
-        originated = 2;
+        originated = 0;
         if (squabdb_empty) {
           sbFirst_active = false;
+          sbPrev_active = false;
           sbNext_active = false;
+          sbLast_active = false;
           sbFind_active = false;
           sbAdd_active = true;
           sbMod_active = false;
@@ -639,12 +634,14 @@ int main(void)
         }
         //exitWindow := WindowShouldClose;
         ClearBackground(clBackground);
-        DrawTexture(iGrass1a, pMain_posX-82, pMain_posY + 425, WHITE);
-        DrawRectangle(pMain_posX,pMain_posY,896,600,clPanel);
-        DrawTexture(iGrass2b, pMain_posX+802, pMain_posY + 423, WHITE);
+        DrawTexture(iGrass1a, pMain_posX-82-48, pMain_posY + 425, WHITE);
+        DrawRectangle(pMain_posX-48,pMain_posY,896+96,600,clPanel);
+        DrawTexture(iGrass2b, pMain_posX+802+48, pMain_posY + 423, WHITE);
         //
         DrawRectangleRoundedLines(rec_sbFirst, 0.2, 4, 2, DARKGRAY);
+        DrawRectangleRoundedLines(rec_sbPrev, 0.2, 4, 2, DARKGRAY);
         DrawRectangleRoundedLines(rec_sbNext, 0.2, 4, 2, DARKGRAY);
+        DrawRectangleRoundedLines(rec_sbLast, 0.2, 4, 2, DARKGRAY);
         DrawRectangleRoundedLines(rec_sbFind, 0.2, 4, 2, DARKGRAY);
         DrawRectangleRoundedLines(rec_sbAdd, 0.2, 4, 2, DARKGRAY);
         DrawRectangleRoundedLines(rec_sbMod, 0.2, 4, 2, DARKGRAY);
@@ -656,9 +653,15 @@ int main(void)
         if (CheckCollisionPointRec(mousePosition, rec_sbFirst))
           if (sbFirst_active)
             DrawRectangleRoundedLines(rec_sbFirst, 0.2, 4, 2, ORANGE);
+        if (CheckCollisionPointRec(mousePosition, rec_sbPrev))
+          if (sbPrev_active)
+            DrawRectangleRoundedLines(rec_sbPrev, 0.2, 4, 2, ORANGE);
         if (CheckCollisionPointRec(mousePosition, rec_sbNext))
           if (sbNext_active)
             DrawRectangleRoundedLines(rec_sbNext, 0.2, 4, 2, ORANGE);
+        if (CheckCollisionPointRec(mousePosition, rec_sbLast))
+          if (sbLast_active)
+            DrawRectangleRoundedLines(rec_sbLast, 0.2, 4, 2, ORANGE);
         if (CheckCollisionPointRec(mousePosition, rec_sbFind))
           if (sbFind_active)
             DrawRectangleRoundedLines(rec_sbFind, 0.2, 4, 2, ORANGE);
@@ -680,10 +683,18 @@ int main(void)
           DrawTexture(sbFirst,rec_sbFirst.x,72,WHITE);
         else
           DrawTexture(sbFirst_gray,rec_sbFirst.x,72,WHITE);
+        if (sbPrev_active)
+          DrawTexture(sbPrev,rec_sbPrev.x,72,WHITE);
+        else
+          DrawTexture(sbPrev_gray,rec_sbPrev.x,72,WHITE);
         if (sbNext_active)
           DrawTexture(sbNext,rec_sbNext.x,72,WHITE);
         else
           DrawTexture(sbNext_gray,rec_sbNext.x,72,WHITE);
+        if (sbLast_active)
+          DrawTexture(sbLast,rec_sbLast.x,72,WHITE);
+        else
+          DrawTexture(sbLast_gray,rec_sbLast.x,72,WHITE);
         if (sbFind_active)
           DrawTexture(sbFind,rec_sbFind.x,72,WHITE);
         else
@@ -707,9 +718,15 @@ int main(void)
         commonPos.x = rec_sbFirst.x;
         commonPos.y = 108;
         DrawTextEx(fontSButton, "First", commonPos, 14, 1, clLabels);
+        commonPos.x = rec_sbPrev.x;
+        commonPos.y = 108;
+        DrawTextEx(fontSButton, "Prev", commonPos, 14, 1, clLabels);
         commonPos.x = rec_sbNext.x;
         commonPos.y = 108;
         DrawTextEx(fontSButton, "Next", commonPos, 14, 1, clLabels);
+        commonPos.x = rec_sbLast.x;
+        commonPos.y = 108;
+        DrawTextEx(fontSButton, "Last", commonPos, 14, 1, clLabels);
         commonPos.x = rec_sbFind.x;
         commonPos.y = 108;
         DrawTextEx(fontSButton, "Find", commonPos, 14, 1, clLabels);
@@ -730,69 +747,76 @@ int main(void)
         DrawTextEx(fontSButton, "Quit", commonPos, 14, 1, clLabels);
 
         // labels and fields
-        commonPos.x = 252;
+        commonPos.x = 252-48;
         commonPos.y = 181;
         DrawTextEx(fontLabel, "BREED NAME:", commonPos, 20, 1, clLabels);
-        commonPos.x = 270;
+        commonPos.x = 270-48;
         commonPos.y = 215;
         if (breed[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
           DrawTextEx(fontLetter, breed, commonPos, 24, 1, clLabels);
-        commonPos.x = 252;
+        commonPos.x = 252-48;
         commonPos.y = 261;
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
-        commonPos.x = 270;
+        commonPos.x = 270-48;
         commonPos.y = 295;
-        if (category[0] == '\0')
+        if (cat[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
-          DrawTextEx(fontLetter, category, commonPos, 24, 1, clLabels);
-        commonPos.x = 252;
+          DrawTextEx(fontLetter, cat, commonPos, 24, 1, clLabels);
+        commonPos.x = 252-48;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
-        commonPos.x = 270;
+        commonPos.x = 270-48;
         commonPos.y = 375;
-        if (origin[0] == '\0')
+        if (orig[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
-          DrawTextEx(fontLetter, origin, commonPos, 24, 1, clLabels);
-        commonPos.x = 252;
+          DrawTextEx(fontLetter, orig, commonPos, 24, 1, clLabels);
+        commonPos.x = 252-48;
         commonPos.y = 506;
         DrawTextEx(fontLabel, "DESCRIPTION:", commonPos, 20, 1, clLabels);
-        commonPos.x = 270;
+        commonPos.x = 270-48;
         commonPos.y = 544;
-        DrawTextEx(fontDesc, description, commonPos, 16, 1, clLabels);
+        DrawTextEx(fontDesc, desc, commonPos, 16, 1, clLabels);
         //
         // draw lines and photo frame
-        commonPos.x = pMain_posX;
+        commonPos.x = pMain_posX-48;
         commonPos.y = pMain_posY+110;
-        commonPos2.x = commonPos.x + 896.0;
+        commonPos2.x = commonPos.x + 896.0+96;
         commonPos2.y= commonPos.y;
         DrawLineEx(commonPos, commonPos2, 4.0, clFrames);
         DrawRectangleRounded(rec_photoFrame,0.1,4,clPhoto);
         commonPos.x = rec_photoFrame.x + 176;
         commonPos.y = rec_photoFrame.y + 410;
-        DrawTextEx(fontSButton, "372 x 372", commonPos, 14, 2, clLetter);
-        if (imageid[0] == '\0')
-          DrawTexture(iNoImage,691,86,WHITE);
+        DrawTextEx(fontSButton, "372 x 372", commonPos, 16, 2, clLetter);
+        if (imgid[0] == '\0')
+          DrawTexture(iNoImage,691+48,86,WHITE);
         else
-          DrawTexture(bufferTex,691,86,WHITE);
+          DrawTexture(bufferTex,691+48,86,WHITE);
 
         // MOUSE EVENT!!!
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) { 
           if (CheckCollisionPointRec(mousePosition, rec_sbFirst))
             if (sbFirst_active)
-              currentScreen = 3;
+              currentScreen = 1;
+          if (CheckCollisionPointRec(mousePosition, rec_sbPrev))
+            if (sbPrev_active)
+              currentScreen = 2;
           if (CheckCollisionPointRec(mousePosition, rec_sbNext))
             if (sbNext_active)
+              currentScreen = 3;
+          if (CheckCollisionPointRec(mousePosition, rec_sbLast))
+            if (sbLast_active)
               currentScreen = 4;
           if (CheckCollisionPointRec(mousePosition, rec_sbFind))
             if (sbFind_active)
               currentScreen = 5;
           if (CheckCollisionPointRec(mousePosition, rec_sbAdd))
             if (sbAdd_active) {
-              currentScreen = 6;
+              originated = 6;
+              currentScreen = 4; // first, goto (a little detour) last record 
               clear_add_fields();
               clear_mod_fields();
             }
@@ -810,11 +834,17 @@ int main(void)
             currentScreen = 11;
         }
         // KEY EVENT
-        if (IsKeyPressed(KEY_LEFT))
+        if (IsKeyPressed(KEY_P))
           if (sbFirst_active)
-            currentScreen = 3;
+            currentScreen = 1;
+        if (IsKeyPressed(KEY_LEFT))
+          if (sbPrev_active)
+            currentScreen = 2;
         if (IsKeyPressed(KEY_RIGHT))
           if (sbNext_active)
+            currentScreen = 3;
+        if (IsKeyPressed(KEY_L))
+          if (sbLast_active)
             currentScreen = 4;
         if (IsKeyPressed(KEY_F))
           if (sbFind_active)
@@ -842,53 +872,170 @@ int main(void)
        * FIRST RECORD "SCREEN" - local to MAIN SCREEN
        * ==================================================================================
        */
-      if (currentScreen == 3) {
+      if (currentScreen == 1) {
         //
         clear_fields();
-        keydb = gdbm_firstkey(pigeondb);
-        if (keydb.dptr == NULL) {
+        //keydb = gdbm_firstkey(pigeondb);
+        d_keyfrst(NAME);
+        if (db_status == S_NOTFOUND){
           squabdb_empty = true;
-        } else {
+        } else if (db_status == S_OKAY){
           squabdb_empty = false;
           sbFirst_active = false;
-          if (!sbNext_active)
+          sbPrev_active = false;
+          if (!sbNext_active){
+            sbLast_active = true;
             sbNext_active = true;
-          strcpy(breed, keydb.dptr);
-          datadb = gdbm_fetch(pigeondb,keydb);
-          strcpy(recordBuffer, datadb.dptr);
-          split_words3sep(category,origin,description,imageid, recordBuffer);
+          }
+          d_recread(&breeds);
+          if(db_status == S_OKAY){
+            strcpy(breed, breeds.name);
+            strcpy(cat, breeds.category);
+            strcpy(orig, breeds.origin);
+            strcpy(desc, breeds.description);
+            strcpy(imgid, breeds.imageid);
+          }
         }
-        DrawRectangle(691,86,372,372,clBackground);
-        load_imageid(imageid, &bufferTex);
-        currentScreen = 2;
+        DrawRectangle(691+48,86,372,372,clBackground);
+        load_imageid(imgid, &bufferTex);
+        currentScreen = 0;
+      }
+      /* ==================================================================================
+       * PREV RECORD "SCREEN" - local to MAIN SCREEN
+       * ==================================================================================
+       */
+      if (currentScreen == 2) {
+        //
+        clear_fields();
+        d_keyprev(NAME);
+        if (db_status == S_NOTFOUND) {
+          d_keyfrst(NAME);
+          if (db_status == S_NOTFOUND)
+            squabdb_empty = true;
+          else if (db_status == S_OKAY) {
+            squabdb_empty = false;
+            sbFirst_active = false;
+            sbPrev_active = false;
+            if (!sbNext_active){
+              sbNext_active = true;
+              sbLast_active = true;
+            }
+            d_recread(&breeds);
+            if(db_status == S_OKAY){
+              strcpy(breed, breeds.name);
+              strcpy(cat, breeds.category);
+              strcpy(orig, breeds.origin);
+              strcpy(desc, breeds.description);
+              strcpy(imgid, breeds.imageid);
+            }            
+          }  
+        } 
+        else if (db_status == S_OKAY){
+          squabdb_empty = false;
+          sbFirst_active = true;
+          sbPrev_active = true;
+          if (!sbNext_active){
+            sbNext_active = true;
+            sbLast_active = true;
+          }
+          d_recread(&breeds);
+          if(db_status == S_OKAY){
+            strcpy(breed, breeds.name);
+            strcpy(cat, breeds.category);
+            strcpy(orig, breeds.origin);
+            strcpy(desc, breeds.description);
+            strcpy(imgid, breeds.imageid);
+          }            
+        }
+        DrawRectangle(691+48,86,372,372,clBackground);
+        load_imageid(imgid, &bufferTex);
+        currentScreen = 0;
       }
       /* ==================================================================================
        * NEXT RECORD "SCREEN" - local to MAIN SCREEN
        * ==================================================================================
        */
+      if (currentScreen == 3) {
+        //
+        clear_fields();
+        d_keynext(NAME);
+        if (db_status == S_NOTFOUND) {
+          d_keylast(NAME);
+          if (db_status == S_NOTFOUND)
+            squabdb_empty = true;
+          else if (db_status == S_OKAY) {
+            squabdb_empty = false;
+            sbLast_active = false;
+            sbNext_active = false;
+            if (!sbFirst_active){
+              sbPrev_active = true;
+              sbFirst_active = true;
+            }
+            d_recread(&breeds);
+            if(db_status == S_OKAY){
+              strcpy(breed, breeds.name);
+              strcpy(cat, breeds.category);
+              strcpy(orig, breeds.origin);
+              strcpy(desc, breeds.description);
+              strcpy(imgid, breeds.imageid);
+            }            
+          }  
+        } 
+        else if (db_status == S_OKAY){
+          squabdb_empty = false;
+          sbFirst_active = true;
+          sbPrev_active = true;
+          if (!sbFirst_active){
+            sbPrev_active = true;
+            sbFirst_active = true;
+          }
+          d_recread(&breeds);
+          if(db_status == S_OKAY){
+            strcpy(breed, breeds.name);
+            strcpy(cat, breeds.category);
+            strcpy(orig, breeds.origin);
+            strcpy(desc, breeds.description);
+            strcpy(imgid, breeds.imageid);
+          }            
+        }
+        DrawRectangle(691+48,86,372,372,clBackground);
+        load_imageid(imgid, &bufferTex);
+        currentScreen = 0;
+      }
+      /* ==================================================================================
+       * LAST RECORD "SCREEN" - local to MAIN SCREEN
+       * ==================================================================================
+       */
       if (currentScreen == 4) {
         //
-        cycle_common = true;
-        strcpy(breed_buff, breed);
-        keydb = gdbm_nextkey(pigeondb,keydb);
-        if (keydb.dptr == NULL) {
+        clear_fields();
+        //keydb = gdbm_firstkey(pigeondb);
+        d_keylast(NAME);
+        if (db_status == S_NOTFOUND)
+          squabdb_empty = true;
+        if (db_status == S_OKAY){
+          squabdb_empty = false;
+          sbLast_active = false;
           sbNext_active = false;
-          originated = 2;
-          cycle_common = false;
-        } else {
-          if (!sbFirst_active)
+          if (!sbFirst_active){
             sbFirst_active = true;
-          datadb = gdbm_fetch(pigeondb,keydb);
-          strcpy(recordBuffer, datadb.dptr);
-          strcpy(breed,keydb.dptr);
-          split_words3sep(category,origin,description,imageid, recordBuffer);
+            sbPrev_active = true;
+          }
+          d_recread(&breeds);
+          if(db_status == S_OKAY){
+            strcpy(breed, breeds.name);
+            strcpy(cat, breeds.category);
+            strcpy(orig, breeds.origin);
+            strcpy(desc, breeds.description);
+            strcpy(imgid, breeds.imageid);
+          }
         }
-        if (cycle_common) {
-          DrawRectangle(691,86,372,372,clBackground);
-          load_imageid(imageid, &bufferTex);
-          currentScreen = 2;
-        } else currentScreen = 12;
-        //
+        DrawRectangle(691+48,86,372,372,clBackground);
+        load_imageid(imgid, &bufferTex);
+        if (originated == 6) 
+          currentScreen = 6;
+        else  
+          currentScreen = 0;
       }
       /* ==================================================================================
        * FIND RECORD "SCREEN" - local to MAIN SCREEN
@@ -917,14 +1064,18 @@ int main(void)
         // EVENTS
         if (bFindKey_click) {
           clear_buffer_fields();
-          strcpy(breed_buff, eText);
-          strcpy(keydb2.dptr, breed_buff);
-          keydb2.dsize = strlen(breed_buff);
-          datadb2 = gdbm_fetch(pigeondb,keydb2);
-          if (datadb2.dptr != NULL) {
-            strcpy(recordBuffer2, datadb2.dptr);
-            split_words3sep(category_buff,origin_buff,description_buff,imageid_buff, recordBuffer2);
-            load_imageid(imageid_buff, &bufferTex2);
+          strcpy(breed_buff, trim(eText, NULL));
+          d_keyfind(NAME, breed_buff);
+          if (db_status == S_OKAY) {
+            d_recread(&breeds);
+            if(db_status == S_OKAY){
+              strcpy(breed_buff, breeds.name);
+              strcpy(cat_buff, breeds.category);
+              strcpy(orig_buff, breeds.origin);
+              strcpy(desc_buff, breeds.description);
+              strcpy(imgid_buff, breeds.imageid);
+              load_imageid(imgid_buff,&bufferTex2);
+            }
             currentScreen = 14;
           } else currentScreen = 13;
         }
@@ -935,6 +1086,7 @@ int main(void)
        */
       if (currentScreen == 6) {
         //
+        originated = 6;
         ClearBackground(clBackground);
         DrawRectangle(pMain_posX,pMain_posY,896,640,clPanel); // SECONDARY PANEL
         commonPos.x = 252;
@@ -942,7 +1094,7 @@ int main(void)
         DrawTextEx(fontLabel, "BREED NAME:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 215;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
         if (GuiTextBox(rec_common,eBreed,60, iBreedEdit)) iBreedEdit = ! iBreedEdit;
         commonPos.x = 252;
@@ -950,38 +1102,38 @@ int main(void)
         DrawTextEx(fontLabel, "CATEGORY ('High flyer','Roller','Tumbler'):", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 295;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eCategory,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
+        if (GuiTextBox(rec_common,eCat,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN (Town and Country):", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 375;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eOrigin,60,iOriginEdit)) iOriginEdit =  !iOriginEdit;
+        if (GuiTextBox(rec_common,eOrig,60,iOriginEdit)) iOriginEdit =  !iOriginEdit;
         commonPos.x = 252;
         commonPos.y = 421;
         DrawTextEx(fontLabel, "IMAGE ID (image file name in 'pictures' subfolder):", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 455;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eImageid,60,iImageidEdit)) iImageidEdit = !iImageidEdit;
+        if (GuiTextBox(rec_common,eImgid,60,iImageidEdit)) iImageidEdit = !iImageidEdit;
         commonPos.x = 252;
         commonPos.y = 506;
         DrawTextEx(fontLabel, "DESCRIPTION (100 characters maxim):", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 544;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eDesc1,50, iDesc1Edit)) iDesc1Edit = ! iDesc1Edit;
+        if (GuiTextBox(rec_common,eDesc1,80, iDesc1Edit)) iDesc1Edit = ! iDesc1Edit;
         rec_common.x = 270;
         rec_common.y = 580;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eDesc2,50, iDesc2Edit)) iDesc2Edit = ! iDesc2Edit;
+        if (GuiTextBox(rec_common,eDesc2,80, iDesc2Edit)) iDesc2Edit = ! iDesc2Edit;
         //
         commonPos.x = pMain_posX;
         commonPos.y = pMain_posY+110;
@@ -999,70 +1151,75 @@ int main(void)
           791, 630, 88, 32
         }, "Cancel");
         if (bAddSave_click) {
-
           // transfer the fields in the buffer and update the record
-          strcpy(eBreed,trim(eBreed,NULL));
-          strcpy(eCategory,trim(eCategory,NULL));
-          strcpy(eOrigin,trim(eOrigin,NULL));
-          strcpy(eImageid,trim(eImageid,NULL));
-          strcpy(eDesc1, ltrim(eDesc1, NULL));
-          strcpy(eDesc2, rtrim(eDesc2, NULL));
-          //
-          /*
-          strcpy(eBreed_buff, eBreed);
-          strcpy(eCategory_buff, eCategory);
-          strcpy(eOrigin_buff, eOrigin);
-          strcpy(eImageid_buff, eImageid);*/
-          strcpy(eDescription_buff, eDesc1);
-          strcat(eDescription_buff, eDesc2); 
+          strcpy(eBreed_buff, trim(eBreed,NULL));
+          strcpy(eCat_buff, trim(eCat,NULL));
+          strcpy(eOrig_buff, trim(eOrig,NULL));
+          strcpy(eImgid_buff, trim(eImgid,NULL));
+          strcpy(eDesc_buff, ltrim(eDesc1,NULL));
+          strcat(eDesc_buff, rtrim(eDesc2,NULL));
           //
           add_err = 0;
-          if (eBreed[0] == '\0') {
+          if (eBreed_buff[0] == '\0') {
             add_err = 1;
             strcpy(err_msg, "The key (breed) can't be empty!");
           }
-          if (eCategory[0] == '\0') {
+          if (eCat_buff[0] == '\0') {
             add_err = 1;
             strcpy(err_msg, "The category can't be empty!");
           }
-          if (eDesc1[0] == '\0') {
+          if (eDesc_buff[0] == '\0') {
             add_err = 1;
             strcpy(err_msg, "The description can't be empty!");
           }
-          if (eImageid[0] == '\0')
-            strcpy(eImageid, "noimage.png");
+          if (eImgid_buff[0] == '\0')
+            strcpy(eImgid, "noimage.png");
           // display error:
           if(add_err > 0) currentScreen = 17;
           if (add_err == 0) {
-            // reconstruct the recordBuffer
-            strcpy(recordBuffer, eCategory);
-            strcat(recordBuffer, ";");
-            strcat(recordBuffer, eOrigin);
-            strcat(recordBuffer, ";");
-            strcat(recordBuffer, eDescription_buff);
-            strcat(recordBuffer, ";");
-            strcat(recordBuffer, eImageid);
-            keydb = gdbm_firstkey(pigeondb); //this is needed if you
-            strcpy(keydb.dptr, eBreed);       // navigate beyond last record
-            keydb.dsize = strlen(eBreed);
-            if(gdbm_exists(pigeondb,keydb) == false) {
-              //datadb = gdbm_fetch(pigeondb,keydb);
-              strcpy(datadb.dptr, recordBuffer);
-              datadb.dsize = strlen(recordBuffer);
-              if (gdbm_store(pigeondb,keydb,datadb,GDBM_INSERT) != GDBM_NO_ERROR)
-                printf("Error inserting data\r\n");
-              clear_add_fields();
-              clear_buffer_fields();
-              currentScreen = 3; //goto first record because the key order might change if adding a record
-            } else {
-              strcpy(err_msg, "ERROR! Key (breed) already in database!");
+            // 
+            // ADD NEW RECORD!
+            //
+            strcpy(breeds.name, eBreed_buff);
+            strcpy(breeds.category, eCat_buff);
+            strcpy(breeds.origin, eOrig_buff);
+            strcpy(breeds.description, eDesc_buff);
+            strcpy(breeds.imageid, eImgid_buff);
+            if (d_keyfind(NAME,eBreed_buff) == S_NOTFOUND){
+              if (d_fillnew(BREEDS, &breeds) == S_OKAY){
+                d_recread(&breeds);
+                if(db_status == S_OKAY){
+                  strcpy(breed, breeds.name);
+                  strcpy(cat, breeds.category);
+                  strcpy(orig, breeds.origin);
+                  strcpy(desc, breeds.description);
+                  strcpy(imgid, breeds.imageid);
+                }
+                //
+                if (squabdb_empty){
+                  squabdb_empty = false;
+                  sbFirst_active = false;
+                  sbNext_active  = true;
+                  sbFind_active  = true;
+                  sbAdd_active   = true;
+                  sbMod_active   = true;
+                  sbDel_active   = true;
+                }
+                clear_add_fields();
+                clear_buffer_fields();
+                DrawRectangle(691+48,86,372,372,clBackground);
+                load_imageid(imgid, &bufferTex);
+                currentScreen = 0;
+              } else printf("Error adding a new record!\r\n");
+            }else {
               currentScreen = 17;
+              strcpy(err_msg, "Sorry, this breed is already here!"); 
             }
           }
         }
         if (bAddCancel_click) {
           // no transfer...
-          currentScreen = 3;
+          currentScreen = 0;
         }
       }
       /* ==================================================================================
@@ -1084,37 +1241,37 @@ int main(void)
         commonPos.y = 261;
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
         if (GuiTextBox((Rectangle) {
-          270,295,700,32
-        },eCategory,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
+          270,295,760,32
+        },eCat,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 375;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eOrigin,60,iOriginEdit)) iOriginEdit =  !iOriginEdit;
+        if (GuiTextBox(rec_common,eOrig,60,iOriginEdit)) iOriginEdit =  !iOriginEdit;
         commonPos.x = 252;
         commonPos.y = 421;
         DrawTextEx(fontLabel, "IMAGE ID:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 455;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eImageid,60,iImageidEdit)) iImageidEdit = !iImageidEdit;
+        if (GuiTextBox(rec_common,eImgid,60,iImageidEdit)) iImageidEdit = !iImageidEdit;
         commonPos.x = 252;
         commonPos.y = 506;
         DrawTextEx(fontLabel, "DESCRIPTION:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 544;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eDesc1,50, iDesc1Edit)) iDesc1Edit = ! iDesc1Edit;
+        if (GuiTextBox(rec_common,eDesc1,80, iDesc1Edit)) iDesc1Edit = ! iDesc1Edit;
         rec_common.x = 270;
         rec_common.y = 580;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eDesc2,50, iDesc2Edit)) iDesc2Edit = ! iDesc2Edit;
+        if (GuiTextBox(rec_common,eDesc2,80, iDesc2Edit)) iDesc2Edit = ! iDesc2Edit;
         //
         commonPos.x = pMain_posX;
         commonPos.y = pMain_posY+110;
@@ -1134,51 +1291,56 @@ int main(void)
         if (bModSave_click) {
           mod_err = 0;
           // transfer the fields in the buffer and update the record if no err
-          strcpy(category, trim(eCategory,NULL));
-          strcpy(origin, trim(eOrigin,NULL));
-          strcpy(imageid, trim(eImageid,NULL));
-          strcpy(description, ltrim(eDesc1, NULL));
-          strcat(description, rtrim(eDesc2, NULL));
-          if (category[0] == '\0'){
+          strcpy(cat, trim(eCat,NULL));
+          strcpy(orig, trim(eOrig,NULL));
+          strcpy(imgid, trim(eImgid,NULL));
+          strcpy(desc, ltrim(eDesc1, NULL));
+          strcat(desc, rtrim(eDesc2, NULL));
+          if (cat[0] == '\0'){
             mod_err = 1;
             strcpy(err_msg, "Category can't be empty!");
           }
-          if (origin[0] == '\0'){
+          if (orig[0] == '\0'){
             mod_err = 1;
             strcpy(err_msg, "Origin can't be empty!");
           }
-          if (description[0] == '\0'){
+          if (desc[0] == '\0'){
             mod_err = 1;
             strcpy(err_msg, "Description can't be empty!");
           }
-          if (imageid[0] == '\0'){
-            strcpy(imageid, "noimage.png");
+          if (imgid[0] == '\0'){
+            strcpy(imgid, "noimage.png");
           }
           if(mod_err > 0) currentScreen = 17;
           if(mod_err == 0){
-            currentScreen = 3;
-            // reconstruct the recordBuffer2
-            strcpy(recordBuffer, category);
-            strcat(recordBuffer, ";");
-            strcat(recordBuffer, origin);
-            strcat(recordBuffer, ";");
-            strcat(recordBuffer, description);
-            strcat(recordBuffer, ";");
-            strcat(recordBuffer, imageid);
+            currentScreen = 0;
             //
-            keydb = gdbm_firstkey(pigeondb); //this is needed if you
-            strcpy(keydb.dptr, breed);       // navigate beyond last record
-            keydb.dsize = strlen(breed);
-            datadb = gdbm_fetch(pigeondb,keydb);
-            strcpy(datadb.dptr, recordBuffer);
-            datadb.dsize = strlen(recordBuffer);
-            if (gdbm_store(pigeondb,keydb,datadb,GDBM_REPLACE) != GDBM_NO_ERROR)
-              printf("Error replacing data\r\n");
+            // UPDATE THE RECORD!
+            //
+            strcpy(breeds.name, breed);
+            strcpy(breeds.category, cat);
+            strcpy(breeds.origin, orig);
+            strcpy(breeds.description, desc);
+            strcpy(breeds.imageid, imgid);
+            if(d_recwrite(&breeds) == S_OKAY ){
+              printf("Record updated!\r\n");
+              /*
+              d_recread(&breeds);
+              if(db_status == S_OKAY){
+                strcpy(breed, breeds.name);
+                strcpy(cat, breeds.category);
+                strcpy(orig, breeds.origin);
+                strcpy(desc, breeds.description);
+                strcpy(imgid, breeds.imageid);
+              } */
+            }
+            else 
+              printf("Error updating the record!\r\n");
           }
         }
         if (bModCancel_click) {
           // no transfer...
-          currentScreen = 3;
+          currentScreen = 0;
         }
       }
       /* ==================================================================================
@@ -1212,13 +1374,11 @@ int main(void)
           791, 590, 60, 28
         }, "No");
         if ((bDelNo_click) || (IsKeyPressed(KEY_N)))
-          currentScreen = 2;
+          currentScreen = 0;
         if ((bDelYes_click) || (IsKeyPressed(KEY_Y))) {
-          currentScreen = 3; // go to reading the first key...
-          keydb.dptr = breed;
-          keydb.dsize = strlen(breed);
-          if (gdbm_delete(pigeondb,keydb) != 0)  // it must return 0 on success
-            printf("Error deleting the record!\r\n");
+          currentScreen = 1; // go to reading the first key...
+          if(d_delete() == S_OKAY) printf("Record deleted!\r\n"); 
+          else  printf("Error deleting the record!\r\n");
         }
       }
       /* ==================================================================================
@@ -1251,21 +1411,18 @@ int main(void)
         DrawTextEx(fontLetter, "- to Gunko Vadim for raylib pascal translation;", commonPos, 24, 2, clLabels);
         commonPos.x = pSplash_posX + 20;
         commonPos.y = pSplash_posY + stp + 159;
-        DrawTextEx(fontLetter, "- to Michael Van Canneyt for gdbm pascal translation;", commonPos, 24, 2, clLabels);
+        DrawTextEx(fontLetter, "- to Thomas B. Pedersen, original developer of typhoon;", commonPos, 24, 2, clLabels);
         commonPos.x = pSplash_posX + 20;
         commonPos.y = pSplash_posY + stp + 187;
-        DrawTextEx(fontLetter, "- to raylib development team;", commonPos, 24, 2, clLabels);
+        DrawTextEx(fontLetter, "- to Kaz Kylheku for update on typhoon library;", commonPos, 24, 2, clLabels);
         commonPos.x = pSplash_posX + 20;
         commonPos.y = pSplash_posY + stp + 215;
-        DrawTextEx(fontLetter, "- to Mikio Hirabayashi, developer of qdbm.", commonPos, 24, 2, clLabels);
+        DrawTextEx(fontLetter, "- to Ramon Santamaria and raylib development team.", commonPos, 24, 2, clLabels);
         bQuitYes_click = GuiButton((Rectangle) {
           pSplash_posX + 315, pSplash_posY + 398, 88, 32
         }, "OK");
-        if (bQuitYes_click)
-          currentScreen = 2;
-        //
-        if (IsKeyPressed(KEY_ENTER))
-          currentScreen = 2;
+        if ((bQuitYes_click) || IsKeyPressed(KEY_ENTER))
+          currentScreen = 0;
       }
       /* ==================================================================================
        * EXIT SCREEN
@@ -1293,11 +1450,11 @@ int main(void)
         if (bQuitYes_click)
           exitWindow = true;
         if (bQuitNo_click)
-          currentScreen = 2;
+          currentScreen = 0;
         if (IsKeyPressed(KEY_Y))
           exitWindow = true;
         if (IsKeyPressed(KEY_N))
-          currentScreen = 2;
+          currentScreen = 0;
       }
       /* ==================================================================================
        * ERROR NEXTKEY "SCREEN" - local to MAIN
@@ -1322,11 +1479,11 @@ int main(void)
           631, 590, 60, 28
         }, "Ok");
         if (bErrorNextKey_click) {
-          currentScreen = 2;
+          currentScreen = 0;
           bErrorNextKey_click = false;
         }
         if (IsKeyPressed(KEY_ENTER)) {
-          currentScreen = 2;
+          currentScreen = 0;
           bErrorNextKey_click = false;
         }
 
@@ -1385,25 +1542,25 @@ int main(void)
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
         commonPos.x = 270;
         commonPos.y = 295;
-        if (category_buff[0] == '\0')
+        if (cat_buff[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
-          DrawTextEx(fontLetter, category_buff, commonPos, 24, 1, clLabels);
+          DrawTextEx(fontLetter, cat_buff, commonPos, 24, 1, clLabels);
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
         commonPos.x = 270;
         commonPos.y = 375;
-        if (origin_buff[0] == '\0')
+        if (orig_buff[0] == '\0')
           DrawTextEx(fontLetter, "...", commonPos, 24, 1, clLabels);
         else
-          DrawTextEx(fontLetter, origin_buff, commonPos, 24, 1, clLabels);
+          DrawTextEx(fontLetter, orig_buff, commonPos, 24, 1, clLabels);
         commonPos.x = 252;
         commonPos.y = 506;
         DrawTextEx(fontLabel, "DESCRIPTION:", commonPos, 20, 1, clLabels);
         commonPos.x = 270;
         commonPos.y = 544;
-        DrawTextEx(fontDesc, description_buff, commonPos, 16, 1, clLabels);
+        DrawTextEx(fontDesc, desc_buff, commonPos, 16, 1, clLabels);
         //
         // draw lines and photo frame
         commonPos.x = pMain_posX;
@@ -1415,8 +1572,12 @@ int main(void)
         DrawTextEx(fontTitle, "I Found It!", (Vector2) {
           337,83
         }, 56, 2, clLabels);
-        DrawRectangleRounded(rec_photoFrame,0.1,4,clPhoto);
-        if (imageid_buff[0] == '\0')
+        rec_common.x = 677;
+        rec_common.y = 72;
+        rec_common.width = 400;
+        rec_common.height = 400;
+        DrawRectangleRounded(rec_common,0.1,4,clPhoto);
+        if (imgid_buff[0] == '\0')
           DrawTexture(iNoImage,691,86,WHITE);
         else
           DrawTexture(bufferTex2,691,86,WHITE);
@@ -1432,7 +1593,7 @@ int main(void)
         }, "Close");
 
         if ((bResultClose_click) || (IsKeyPressed(KEY_C))) {
-          currentScreen = 2;
+          currentScreen = 1;
           bResultClose_click = false;
         }
         if ((bResultDel_click) || (IsKeyPressed(KEY_D))) {
@@ -1440,20 +1601,20 @@ int main(void)
           bResultDel_click = false;
         }
         if ((bResultMod_click) || (IsKeyPressed(KEY_M))) {
-          ln = strlen(description_buff);
+          ln = strlen(desc_buff);
           currentScreen = 16;
           bResultMod_click = false;
-          strcpy(eCategory_buff, category_buff);
-          strcpy(eOrigin_buff, origin_buff);
-          strcpy(eImageid_buff, imageid_buff);
-          if (ln <= 50) {
-            strcpy(eDesc1_buff, description_buff);
+          strcpy(eCat_buff, cat_buff);
+          strcpy(eOrig_buff, orig_buff);
+          strcpy(eImgid_buff, imgid_buff);
+          if (ln <=80) {
+            strcpy(eDesc1_buff, desc_buff);
             eDesc2_buff[0] = '\0';
           } else {
-            strncpy(eDesc1_buff, description_buff, 50);
-            for(i=50; i<ln; i++)
-              eDesc2_buff[i-50] = description_buff[i];
-            eDesc2_buff[ln-50] = '\0';
+            strncpy(eDesc1_buff, desc_buff, 80);
+            for(i=80; i<ln; i++)
+              eDesc2_buff[i-80] = desc_buff[i];
+            eDesc2_buff[ln-80] = '\0';
           }
         }
       }
@@ -1489,11 +1650,9 @@ int main(void)
         if ((bResultDelNo_click) || (IsKeyPressed(KEY_N)))
           currentScreen = 14;
         if ((bResultDelYes_click)  || (IsKeyPressed(KEY_Y))) {
-          currentScreen = 3;
-          strcpy(keydb.dptr, breed_buff);
-          keydb.dsize = strlen(breed_buff);
-          if (gdbm_delete(pigeondb,keydb) != 0)
-            printf("Error deleting the found record!\r\n");
+          currentScreen = 1;
+          if(d_delete() != S_OKAY)
+            printf("Record can't deleted!\r\n");
         }
       }
       /* ==================================================================================
@@ -1514,37 +1673,37 @@ int main(void)
         commonPos.y = 261;
         DrawTextEx(fontLabel, "CATEGORY:", commonPos, 20, 1, clLabels);
         if (GuiTextBox((Rectangle) {
-        270,295,700,32
-      },eCategory_buff,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
+          270,295,760,32
+        },eCat_buff,60,iCategoryEdit)) iCategoryEdit =  !iCategoryEdit;
         commonPos.x = 252;
         commonPos.y = 341;
         DrawTextEx(fontLabel, "ORIGIN:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 375;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eOrigin_buff,60,iOriginEdit)) iOriginEdit =  !iOriginEdit;
+        if (GuiTextBox(rec_common,eOrig_buff,60,iOriginEdit)) iOriginEdit =  !iOriginEdit;
         commonPos.x = 252;
         commonPos.y = 421;
         DrawTextEx(fontLabel, "IMAGE ID:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 455;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eImageid_buff,60,iImageidEdit)) iImageidEdit = !iImageidEdit;
+        if (GuiTextBox(rec_common,eImgid_buff,60,iImageidEdit)) iImageidEdit = !iImageidEdit;
         commonPos.x = 252;
         commonPos.y = 506;
         DrawTextEx(fontLabel, "DESCRIPTION:", commonPos, 20, 1, clLabels);
         rec_common.x = 270;
         rec_common.y = 544;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eDesc1_buff,50, iDesc1Edit)) iDesc1Edit = ! iDesc1Edit;
+        if (GuiTextBox(rec_common,eDesc1_buff,80, iDesc1Edit)) iDesc1Edit = ! iDesc1Edit;
         rec_common.x = 270;
         rec_common.y = 580;
-        rec_common.width = 700;
+        rec_common.width = 760;
         rec_common.height = 32;
-        if (GuiTextBox(rec_common,eDesc2_buff,50, iDesc2Edit)) iDesc2Edit = ! iDesc2Edit;
+        if (GuiTextBox(rec_common,eDesc2_buff,80, iDesc2Edit)) iDesc2Edit = ! iDesc2Edit;
         //
         commonPos.x = pMain_posX;
         commonPos.y = pMain_posY+110;
@@ -1564,47 +1723,37 @@ int main(void)
         if (bModSave_click) {
           mod_err = 0;
           // transfer the fields in the buffer and update the record if no err
-          strcpy(category_buff, trim(eCategory_buff,NULL));
-          strcpy(origin_buff, trim(eOrigin_buff,NULL));
-          strcpy(imageid_buff, trim(eImageid_buff,NULL));
-          strcpy(description_buff, ltrim(eDesc1_buff, NULL));
-          strcat(description_buff, rtrim(eDesc2_buff, NULL));
-          if (category_buff[0] =='\0'){
+          strcpy(cat_buff, trim(eCat_buff,NULL));
+          strcpy(orig_buff, trim(eOrig_buff,NULL));
+          strcpy(imgid_buff, trim(eImgid_buff,NULL));
+          strcpy(desc_buff, ltrim(eDesc1_buff, NULL));
+          strcat(desc_buff, rtrim(eDesc2_buff, NULL));
+          if (cat_buff[0] =='\0'){
             mod_err = 1;
             strcpy(err_msg, "Category can't be empty!");
           }
-          if (origin_buff[0] =='\0'){
+          if (orig_buff[0] =='\0'){
             mod_err = 1;
             strcpy(err_msg, "Origin can't be empty!");
           }
-          if (description_buff[0] =='\0'){
+          if (desc_buff[0] =='\0'){
             mod_err = 1;
             strcpy(err_msg, "Description can't be empty!");
           }
-          if (imageid_buff[0] == '\0')
-            strcpy(imageid_buff, "noimage.png");
+          if (imgid_buff[0] == '\0')
+            strcpy(imgid_buff, "noimage.png");
           if (mod_err > 0) currentScreen = 17;
           if (mod_err == 0){
             currentScreen = 14;
-            // reconstruct the recordBuffer2
-            strcpy(recordBuffer2, category_buff);
-            strcat(recordBuffer2, ";");
-            strcat(recordBuffer2, origin_buff);
-            strcat(recordBuffer2, ";");
-            strcat(recordBuffer2, description_buff);
-            strcat(recordBuffer2, ";");
-            strcat(recordBuffer2, imageid_buff);
-            //
-            keydb2 = gdbm_firstkey(pigeondb);
-            strcpy(keydb2.dptr, breed_buff);
-            keydb2.dsize = strlen(breed_buff);
-            datadb2 = gdbm_fetch(pigeondb, keydb2);
-            strcpy(datadb2.dptr, recordBuffer2);
-            datadb2.dsize = strlen(recordBuffer2);
-            if (gdbm_store(pigeondb,keydb2,datadb2,GDBM_REPLACE) != GDBM_NO_ERROR)
-              printf("Error inserting data\r\n");
-            else
-              load_imageid(imageid_buff, &bufferTex2);
+            strcpy(breeds.name, breed_buff);
+            strcpy(breeds.category, cat_buff);
+            strcpy(breeds.origin, orig_buff);
+            strcpy(breeds.description, desc_buff);
+            strcpy(breeds.imageid, imgid_buff);
+            if(d_recwrite(&breeds) == S_OKAY ){
+              printf("Record updated!\r\n");
+            }
+            load_imageid(imgid_buff, &bufferTex2);
           }
         }
         if (bModCancel_click) {
@@ -1672,7 +1821,9 @@ int main(void)
     UnloadTexture(sbMod_gray);
     UnloadTexture(sbAdd_gray);
     UnloadTexture(sbFind_gray);
+    UnloadTexture(sbLast_gray);
     UnloadTexture(sbNext_gray);
+    UnloadTexture(sbPrev_gray);
     UnloadTexture(sbFirst_gray);
     //
     UnloadTexture(sbExit);
@@ -1681,10 +1832,12 @@ int main(void)
     UnloadTexture(sbMod);
     UnloadTexture(sbAdd);
     UnloadTexture(sbFind);
+    UnloadTexture(sbLast);
     UnloadTexture(sbNext);
+    UnloadTexture(sbPrev);
     UnloadTexture(sbFirst);
     //
-    gdbm_close(pigeondb);
+    d_close();
   } else printf("Error when creating/opening database!\r\n");
   return 0;
 }
