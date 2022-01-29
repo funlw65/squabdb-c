@@ -357,10 +357,15 @@ int main(void)
     Font fontLabel   = LoadFontEx("style/FreeSans.ttf", 20, 0, 0);
     Font fontSButton = LoadFontEx("style/Mecha.ttf", 14, 0, 0);
     Font fontDesc    = LoadFontEx("style/Mecha.ttf", 16, 0, 0);
-    load_imageid(imgid, &bufferTex);
+
     bufferIcon = LoadImage("pictures/noimage.png");
     iNoImage = LoadTextureFromImage(bufferIcon);
+    bufferTex = LoadTextureFromImage(bufferIcon);
+    bufferTex2 = LoadTextureFromImage(bufferIcon);
     UnloadImage(bufferIcon);
+    //
+    load_imageid(imgid, &bufferTex);
+
 
     // Splash
     bufferIcon = LoadImage("img/Pigeon.png");
