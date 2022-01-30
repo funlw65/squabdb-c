@@ -820,8 +820,7 @@ int main(void)
               currentScreen = 5;
           if (CheckCollisionPointRec(mousePosition, rec_sbAdd))
             if (sbAdd_active) {
-              originated = 6;
-              currentScreen = 4; // first, goto (a little detour) last record 
+              currentScreen = 6; // first, goto (a little detour) last record 
               clear_add_fields();
               clear_mod_fields();
             }
@@ -1037,10 +1036,7 @@ int main(void)
         }
         DrawRectangle(691+48,86,372,372,clBackground);
         load_imageid(imgid, &bufferTex);
-        if (originated == 6) 
-          currentScreen = 6;
-        else  
-          currentScreen = 0;
+        currentScreen = 0;
       }
       /* ==================================================================================
        * FIND RECORD "SCREEN" - local to MAIN SCREEN
@@ -1214,7 +1210,7 @@ int main(void)
                 clear_buffer_fields();
                 DrawRectangle(691+48,86,372,372,clBackground);
                 load_imageid(imgid, &bufferTex);
-                currentScreen = 0;
+                currentScreen = 1; // jump to the first key in the database
               } else printf("Error adding a new record!\r\n");
             }else {
               currentScreen = 17;
