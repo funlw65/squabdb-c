@@ -1174,7 +1174,7 @@ int main(void)
             strcpy(err_msg, "The description can't be empty!");
           }
           if (eImgid_buff[0] == '\0')
-            strcpy(eImgid, "noimage.png");
+            strcpy(eImgid_buff, "noimage.png");
           // display error:
           if(add_err > 0) currentScreen = 17;
           if (add_err == 0) {
@@ -1325,7 +1325,6 @@ int main(void)
             strcpy(breeds.imageid, imgid);
             if(d_recwrite(&breeds) == S_OKAY ){
               printf("Record updated!\r\n");
-              /*
               d_recread(&breeds);
               if(db_status == S_OKAY){
                 strcpy(breed, breeds.name);
@@ -1333,7 +1332,7 @@ int main(void)
                 strcpy(orig, breeds.origin);
                 strcpy(desc, breeds.description);
                 strcpy(imgid, breeds.imageid);
-              } */
+              }               
             }
             else 
               printf("Error updating the record!\r\n");
@@ -1342,6 +1341,14 @@ int main(void)
         if (bModCancel_click) {
           // no transfer...
           currentScreen = 0;
+          d_recread(&breeds);
+          if(db_status == S_OKAY){
+            strcpy(breed, breeds.name);
+            strcpy(cat, breeds.category);
+            strcpy(orig, breeds.origin);
+            strcpy(desc, breeds.description);
+            strcpy(imgid, breeds.imageid);
+          } 
         }
       }
       /* ==================================================================================
@@ -1653,7 +1660,7 @@ int main(void)
         if ((bResultDelYes_click)  || (IsKeyPressed(KEY_Y))) {
           currentScreen = 1;
           if(d_delete() != S_OKAY)
-            printf("Record can't deleted!\r\n");
+            printf("Record can't be deleted!\r\n");
         }
       }
       /* ==================================================================================
@@ -1791,6 +1798,7 @@ int main(void)
       }
       EndDrawing();
     }
+    d_close();
     UnloadFont(fontTitle);
     UnloadFont(fontLetter);
     UnloadFont(fontLabel);
@@ -1838,7 +1846,6 @@ int main(void)
     UnloadTexture(sbPrev);
     UnloadTexture(sbFirst);
     //
-    d_close();
   } else printf("Error when creating/opening database!\r\n");
   return 0;
 }
